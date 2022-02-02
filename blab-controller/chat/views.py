@@ -70,7 +70,8 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
         participant.save()
 
     @action(detail=True, methods=['post'])
-    def join(self, request: HttpRequest) -> Response:
+    def join(self, request: HttpRequest, *args: Any,
+             **kwargs: Any) -> Response:
         nick_key = 'nickname'
         nickname = (request.data.get(nick_key or None)
                     or request.session.get(nick_key, None) or '')
