@@ -104,7 +104,7 @@ class Message(models.Model):
     """The message type"""
 
     conversation = models.ForeignKey(Conversation,
-                                     related_name='%(class)s',
+                                     related_name='messages',
                                      on_delete=models.CASCADE,
                                      verbose_name=gettext('message'))
     """The conversation to which the message belongs"""
