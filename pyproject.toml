@@ -1,0 +1,50 @@
+[tool.poetry]
+name = "blab-controller"
+version = "0.0.1dev"
+description = ""
+authors = ["C4AI"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+mypy = "^0.931"
+overrides = "^6.1.0"
+channels = "^3.0.4"
+channels-redis = "^3.3.1"
+djangorestframework = "^3.13.1"
+Markdown = "^3.3.6"
+django-filter = "^21.1"
+django-cors-headers = "^3.11.0"
+python-dotenv = "^0.19.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+darglint = "*"
+flake8 = "*"
+flake8-annotations = "*"
+flake8-docstrings = "*"
+flake8-bugbear = "*"
+python-lsp-server = { extras = ["all"], version = "*" }
+pyupgrade = "*"
+mypy = "*"
+yapf = "*"
+pre-commit = "^2.16.0"
+Django = "^4.0.2"
+
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+
+[tool.poetry.group.test]
+optional = true
+
+[tool.poetry.group.test.dependencies]
