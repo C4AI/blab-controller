@@ -22,7 +22,7 @@ INSTALLED_APPS += [
 
 ##########################################################################
 
-ALLOWED_HOSTS += [
+ALLOWED_HOSTS = [
     # 'example.com',       # domain
     # 'www.example.com',   # subdomain
     # '.example.com',      # all subdomains

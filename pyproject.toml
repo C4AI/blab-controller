@@ -38,6 +38,28 @@ yapf = "*"
 pre-commit = "^2.16.0"
 Django = "^4.0.2"
 
+[tool.poetry.group.PostgreSQL]
+optional = true
+[tool.poetry.group.PostgreSQL.dependencies]
+psycopg2-binary = "^2.9.3"
+
+[tool.poetry.group.MySQL]
+optional = true
+[tool.poetry.group.MySQL.dependencies]
+mysqlclient = "^2.1.0"
+
+[tool.poetry.group.Oracle]
+optional = true
+[tool.poetry.group.Oracle.dependencies]
+cx-Oracle = "^8.3.0"
+
+[tool.poetry.group.SQLite3]
+optional = true
+[tool.poetry.group.SQLite3.dependencies]
+
+
+
+
 
 [tool.poetry.group.docs]
 optional = true
