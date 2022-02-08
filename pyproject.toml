@@ -58,7 +58,8 @@ optional = true
 [tool.poetry.group.SQLite3.dependencies]
 
 
-
+[tool.poetry.group.prod.dependencies]
+gunicorn = "^20.1.0"
 
 
 [tool.poetry.group.docs]

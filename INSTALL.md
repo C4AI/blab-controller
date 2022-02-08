@@ -19,7 +19,8 @@ POETRY_VIRTUALENVS_IN_PROJECT=true poetry install
 
 - **(In development and test environments)** <br/>
   To install additional dependencies for development, documentation generation and testing, add the arguments
-  `--with dev,doc,test` to the command in the last step.
+  `--with dev,doc,test` to the command in the last step. To avoid the installation of
+  production-only dependencies, add `--without prod`.
 
 - Install and set up the database server ([PostgreSQL](https://www.postgresql.org/),
   [MariaDB](https://mariadb.org/), [MySQL](https://www.mysql.com/) or [Oracle](https://www.oracle.com/database/)). If
