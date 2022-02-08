@@ -19,8 +19,8 @@ POETRY_VIRTUALENVS_IN_PROJECT=true poetry install
 
 - **(In development and test environments)** <br/>
   To install additional dependencies for development, documentation generation and testing, add the arguments
-  `--with dev,doc,test` to the command in the last step. To avoid the installation of
-  production-only dependencies, add `--without prod`.
+  `--with dev,doc,test` to the command in the last step. To avoid the installation of production-only dependencies,
+  add `--without prod`.
 
 - Install and set up the database server ([PostgreSQL](https://www.postgresql.org/),
   [MariaDB](https://mariadb.org/), [MySQL](https://www.mysql.com/) or [Oracle](https://www.oracle.com/database/)). If
@@ -67,29 +67,41 @@ poetry run ./blab-controller/manage.py runserver
   between the web server and the controller written in Python.
   <details>
     <summary>
-    Example - Apache
+    Example - using Apache, Gunicorn and Daphne on a Debian-based Linux distribution
     </summary>
 
-    - Install [mod_wsgi](https://modwsgi.readthedocs.io/en/develop/index.html). It is available as the `libapache2-mod-wsgi-py3` package in
-      Debian-based Linux distributions, but it is usually outdated and it has to be built using the same Python version that will be used. Alternatively, run `poetry run pip install mod_wsgi` to compile it and install it on demand, then run `mod_wsgi-express module-config` and copy the first output line (*LoadModule wsgi_module...*) to the beginning of the file described in the next item.
-
-    - If running on a Debian-based Linux distribution, create the file
+    - Enable [*mod_proxy_http*](https://httpd.apache.org/docs/2.4/mod/mod_proxy_http.html) and
+      [*mod_rewrite*](https://httpd.apache.org/docs/2.4/mod/mod_rewrite.html) modules by
+      running `a2enmod proxy_http rewrite` as root.
+    - Create the file
       */etc/apache2/sites-available/blab-controller.conf* with the following contents:
   ```ApacheConf
   Define BLAB_CONTROLLER_ROOT /full/path/to/blab-controller
 
-  WSGIScriptAlias /api ${BLAB_CONTROLLER_ROOT}/blab-controller/controller/wsgi.py
-  WSGIPythonHome ${BLAB_CONTROLLER_ROOT}/.venv
-  WSGIPythonPath ${BLAB_CONTROLLER_ROOT}
-
-  <Directory ${BLAB_CONTROLLER_ROOT}/blab-controller/controller>
-      <Files wsgi.py>
-          Require all granted
-      </Files>
-  </Directory>
+  ProxyPass /static/ !
+  ProxyPass /media/ !
+  ProxyPass /api/ http://localhost:8000/api/
   ```
-  Then, run `a2ensite blab-controller` to enable the site configuration. In other distributions, the contents
-  can be added to an existing file such as `/etc/apache/httpd.conf`.
+    - Run `a2ensite blab-controller` as root to enable the site configuration.
 
-    - Restart Apache (`systemctl reload apache2`).
+    - Create the file */etc/systemd/system/blab-gunicorn.service* with the following contents, changing the username and
+      paths as needed:
+  ```ini
+  [Unit]
+  Description=Gunicorn daemon
+  After=network.target
+
+  [Service]
+  User=user_name_here
+  Group=www-data
+  Restart=always
+  WorkingDirectory=/full/path/to/blab-controller/blab-controller
+  ExecStart=/full/path/to/blab-controller/.venv/bin/python -m gunicorn controller.wsgi
+
+  [Install]
+  WantedBy=multi-user.target
+  ```
+    - Run `systemctl enable blab-gunicorn` and `systemctl start blab-gunicorn` to enable the service and start it
+      immediately.
+    - Restart Apache (`systemctl reload apache2` as root).
   </details>
