@@ -82,8 +82,15 @@ example, this file is at */somewhere/blab-controller/INSTALL.md*, and the manage
     Example - using Apache, Gunicorn and Daphne on a Debian-based Linux distribution
     </summary>
 
-    - Create the service files for [Gunicorn](https://github.com/benoitc/gunicorn)
-      and [Daphne](https://github.com/django/daphne) in the directory */etc/systemd/system/*, changing the usernames,
+    - Install [Gunicorn](https://github.com/benoitc/gunicorn)
+      and [Daphne](https://github.com/django/daphne):
+
+      ```shell
+      poetry run pip install gunicorn daphne
+      ```
+
+    - Create the service files for Gunicorn
+      and Daphne in the directory */etc/systemd/system/*, changing the usernames,
       ports and paths as needed:
 
         ```ini
