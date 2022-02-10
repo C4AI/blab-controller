@@ -14,6 +14,8 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
 - Install `python3-venv` or the equivalent package for the Linux distribution you are using. It may correspond to a
   different Python version.
 
+- Install `redis-server`, which will be used to handle the WebSocket connections.
+
 - Install [Poetry](https://python-poetry.org/):
 
   ```shell
