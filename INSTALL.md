@@ -153,6 +153,7 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
         Define BLAB_DAPHNE_PORT 25223
         Define BLAB_GUNICORN_PORT 25224
         Define BLAB_SERVER_NAME www.blab.example.com
+        Define BLAB_SERVER_ALIASES '*.blab.example.com otherblab.example.com'
         Define BLAB_SERVER_IPS_PORTS '127.0.0.1:80 192.168.122.10:80'
 
         ErrorLog ${BLAB_CONTROLLER_ROOT}/blab-controller/.logs/error.log
@@ -160,8 +161,9 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
 
         <VirtualHost ${BLAB_SERVER_IPS_PORTS}>
           ServerName ${BLAB_SERVER_NAME}
+          ServerAlias ${BLAB_SERVER_ALIASES}
 
-          <Directory "${BLAB_CONTROLLER_FE}">
+         <Directory "${BLAB_CONTROLLER_FE}">
             Options Indexes FollowSymLinks
             AllowOverride All
 
