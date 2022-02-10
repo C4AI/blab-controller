@@ -40,6 +40,9 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   needed, check
   the [Django documentation on database installation](https://docs.djangoproject.com/en/4.0/ref/databases/). In
   development environments, [SQLite](https://www.sqlite.org/index.html) is also supported.
+  Note that:
+    - for MariaDB, the installation of `libmariadbclient-dev` is required;
+    - for MySQL, the installation of `libmysqlclient-dev` is required.
 
 - **(In production environment)** <br/>
   Create a database to be used by BLAB (e.g. `CREATE DATABASE blab;`) and a database user that can modify it.
