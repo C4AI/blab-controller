@@ -8,6 +8,7 @@ A short description is given below each field.
 Documentation:
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
+# yapf: disable
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -23,6 +24,7 @@ INSTALLED_APPS += [
 ##########################################################################
 
 ALLOWED_HOSTS = [
+    'localhost',           # local connections should be allowed
     # 'example.com',       # domain
     # 'www.example.com',   # subdomain
     # '.example.com',      # all subdomains
