@@ -100,6 +100,16 @@ https://github.com/django/channels_redis
 """
 
 ##########################################################################
+
+_ssl = True
+"""Whether SSL should be required.
+
+It should be set to False in temporary servers that cannot be accessed
+via HTTPS.
+"""
+
+##########################################################################
+
 SECURE_HSTS_SECONDS = 3600
 """
 Number of seconds after which the browser should only use HTTPS.
@@ -113,10 +123,6 @@ Documentation:
 https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
 
 """
-
-##########################################################################
-
-_ssl = True
 
 ##########################################################################
 # IT IS NOT NECESSARY TO EDIT THE REMAINING CONTENTS OF THIS FILE

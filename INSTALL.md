@@ -11,15 +11,17 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   repositories, [this short script](https://gist.github.com/viniciusbm/f603d2d8165b08321be0728e5e51e8d8) can be used to
   compile and install it from source.
 
-- Install `python3-venv` or the equivalent package for the Linux distribution you are using.
+- Install `python3-venv` or the equivalent package for the Linux distribution you are using. It may correspond to a
+  different Python version.
 
 - Install [Poetry](https://python-poetry.org/):
 
   ```shell
   curl -sSL https://install.python-poetry.org | python3 - --preview
   ```
+  If *~/.local/bin* is not in `PATH`, add it as suggested by the output of Poetry installer.
 
-- In the root directory of the project (that contains this _README.ME_ file)
+- In the root directory of the project (which contains this _INSTALL.md_ file)
   run Poetry to install the dependencies in a new virtual environment (_.venv_):
 
   ```shell
@@ -40,7 +42,7 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
 - **(In production environment)** <br/>
   Create a database to be used by BLAB (e.g. `CREATE DATABASE blab;`) and a database user that can modify it.
 
-- Install the additional Python dependencies that are specific for the database server:
+- Install the additional Python dependencies that are specific for the database server (for MariaDB, write `MySQL`):
 
   ```shell
   # Run only the line that corresponds to the database server that will be used.
@@ -121,7 +123,7 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
         After=network.target
 
         [Service]
-        User=vbm
+        User=user_name_here
         Group=www-data
         Restart=always
         WorkingDirectory=/somewhere/blab-controller/blab-controller
@@ -140,19 +142,25 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
       [*mod_rewrite*](https://httpd.apache.org/docs/2.4/mod/mod_rewrite.html) modules by
       running `a2enmod proxy_http proxy_wstunnel rewrite` as root.
     - Create the file
-      */etc/apache2/sites-available/blab-controller.conf* with the following contents, changing the paths and ports as
-      needed:
+      */etc/apache2/sites-available/blab-controller.conf* with the following contents, changing the paths, IPs,
+      ports and addresses as needed:
 
         ```ApacheConf
+        # /etc/apache2/sites-available/blab-controller.conf
+
         Define BLAB_CONTROLLER_ROOT /somewhere/blab-controller
         Define BLAB_CONTROLLER_FE   /path/to/the/front/end/here
         Define BLAB_DAPHNE_PORT 25223
         Define BLAB_GUNICORN_PORT 25224
+        Define BLAB_SERVER_NAME www.blab.example.com
+        Define BLAB_SERVER_IPS_PORTS '127.0.0.1:80 192.168.122.10:80'
 
         ErrorLog ${BLAB_CONTROLLER_ROOT}/blab-controller/.logs/error.log
         CustomLog ${BLAB_CONTROLLER_ROOT}/blab-controller/.logs/access.log combined
 
-        <VirtualHost *>
+        <VirtualHost ${BLAB_SERVER_IPS_PORTS}>
+          ServerName ${BLAB_SERVER_NAME}
+
           <Directory "${BLAB_CONTROLLER_FE}">
             Options Indexes FollowSymLinks
             AllowOverride All
@@ -175,5 +183,11 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
         ```
     - Run `a2ensite blab-controller` as root to enable the site configuration.
 
+    - Restart Gunicorn and Daphne (`systemctl restart blab-gunicorn blab-daphne`) now and **whenever changes are made**
+      to any file in *blab-controller/* and its subdirectories.
+
     - Restart Apache (`systemctl reload apache2` as root).
+
+    At this point, the installation should be ready.
+
   </details>
