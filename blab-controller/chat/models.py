@@ -179,9 +179,9 @@ class Message(models.Model):
                                 max_length=32)
     """Local message id, defined by the sender.
 
-    This field is stored by the back-end server, but not used internally in any
-    situation.
-    If the sender includes a unique local_id per message, it can be used
+    Subsequent attempts to send a message with the same local id from the
+    same sender are ignored.
+    The sender should include a unique local_id per message, and it can be used
     to identify each message when it is returned by the server.
     """
 
@@ -210,3 +210,8 @@ class Message(models.Model):
     class Meta:
         verbose_name = gettext('message')
         verbose_name_plural = gettext('messages')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['conversation', 'sender', 'local_id'],
+                name='local_id_unique')
+        ]

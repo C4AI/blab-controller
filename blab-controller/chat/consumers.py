@@ -1,11 +1,12 @@
 import json
 from datetime import datetime
 from sys import maxsize
-from typing import Any
+from typing import Any, cast
 
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.core.exceptions import ValidationError
 
 from .models import Conversation, Message, Participant
 from .serializers import MessageSerializer, ParticipantSerializer
@@ -116,7 +117,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                       text_data: str | None = None,
                       bytes_data: bytes | None = None) -> None:
         message_data = {}
-        message_class = None
         t = None
         if text_data:
             m = json.loads(text_data)
@@ -129,31 +129,48 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 quoted_message_conversation_id = await database_sync_to_async(
                     lambda: str(quoted_message.conversation.id)
                     if quoted_message else None)()
-                print([quoted_message_conversation_id, self.conversation_id])
                 if (quoted_message_conversation_id == self.conversation_id):
                     message_data['quoted_message'] = quoted_message
-                print(message_data)
 
             t = m.get('type', None)
             if t == Message.MessageType.TEXT:
                 text = m.get('text', '')
                 if not text or not isinstance(text, str):
                     return
-                message_class = Message
                 message_data['text'] = text
                 if 'local_id' in m:
                     message_data['local_id'] = m['local_id']
+            else:
+                raise Exception('UNSUPPORTED TYPE')
 
-        if message_class:
-            msg = await database_sync_to_async(
-                message_class.objects.create
-            )(**message_data,
-              type=t,
-              conversation_id=self.conversation_id,
-              sender=self.participant)
-            database_sync_to_async(msg.save)()
+        msg = await self.create_message(
+            t, {
+                **message_data, 'type': t,
+                'conversation_id': self.conversation_id,
+                'sender': self.participant
+            })
+        if msg:
             await self.channel_layer.group_send(
                 self.conversation_group_name, {
                     'type': 'send_message',
                     'message': MessageSerializer(msg).data
                 })
+
+    @database_sync_to_async
+    def create_message(self, message_type: str,
+                       message_data: dict[str, Any]) -> Message | None:
+        try:
+            message = Message.objects.create(**message_data)
+            message.save()
+        except ValidationError as e:
+            err = getattr(e, 'error_dict', {}).get('__all__', [])
+            if len(err) == 1 and getattr(err[0], 'code',
+                                         None) == 'unique_together':
+                chk = getattr(err[0], 'params',
+                              {}).get('unique_check', tuple())
+                if set(chk) == {'conversation', 'sender', 'local_id'}:
+                    # Ignore duplicate message
+                    return None
+            raise
+        message.save()
+        return cast(Message, message)
