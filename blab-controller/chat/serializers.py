@@ -53,12 +53,15 @@ class TextMessageSerializer(ModelSerializer):
     """Serialises text messages."""
 
     id = CharField(source='m_id')
+    quoted_message_id = CharField(source='quoted_message.m_id',
+                                  allow_null=True)
 
     sender = ParticipantSerializer()
 
     class Meta:
         model = Message
-        fields = ('type', 'time', 'local_id', 'id', 'sender', 'text')
+        fields = ('type', 'time', 'local_id', 'id', 'sender', 'text',
+                  'quoted_message_id')
 
 
 # noinspection PyAbstractClass

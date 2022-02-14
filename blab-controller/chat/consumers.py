@@ -120,6 +120,20 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         t = None
         if text_data:
             m = json.loads(text_data)
+            quoted_message_id = m.get('quoted_message_id', None)
+
+            if quoted_message_id:
+                quoted_message = await database_sync_to_async(
+                    lambda: Message.objects.filter(m_id=quoted_message_id
+                                                   ).first())()
+                quoted_message_conversation_id = await database_sync_to_async(
+                    lambda: str(quoted_message.conversation.id)
+                    if quoted_message else None)()
+                print([quoted_message_conversation_id, self.conversation_id])
+                if (quoted_message_conversation_id == self.conversation_id):
+                    message_data['quoted_message'] = quoted_message
+                print(message_data)
+
             t = m.get('type', None)
             if t == Message.MessageType.TEXT:
                 text = m.get('text', '')
