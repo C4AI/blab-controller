@@ -1,10 +1,12 @@
-from typing import Any
+from typing import Any, Iterable
 
 from django.db.models import Model, QuerySet
 from django.http import HttpRequest
+from django.utils.dateparse import parse_datetime
 from overrides import overrides
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import (ParseError, PermissionDenied,
+                                       ValidationError)
 from rest_framework.mixins import (CreateModelMixin, ListModelMixin,
                                    RetrieveModelMixin)
 from rest_framework.response import Response
@@ -13,7 +15,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from .models import Conversation, Message, Participant
 from .serializers import (ConversationOnListSerializer, ConversationSerializer,
-                          ParticipantSerializer)
+                          MessageSerializer, ParticipantSerializer)
 
 
 class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
@@ -122,3 +124,45 @@ class ConversationParticipantsViewSet(ListModelMixin, GenericViewSet):
     def get_queryset(self) -> QuerySet:
         return Participant.objects.filter(
             conversation=self.kwargs.get('conversation_id'))
+
+
+class ConversationMessagesViewSet(ListModelMixin, GenericViewSet):
+
+    serializer_class = MessageSerializer
+
+    def get_queryset(self) -> Iterable[Message]:
+        conversation_id = str(self.kwargs['conversation_id'])
+        existing = self.request.session.setdefault(
+            'participation_in_conversation', {}).get(conversation_id, None)
+        p = None
+        if existing:
+            try:
+                p = Participant.objects.get(pk=existing)
+            except Model.DoesNotExist:
+                pass
+        if not p:
+            raise PermissionDenied('You are not in this conversation.')
+        q = Message.objects.filter(conversation_id=conversation_id)
+        if (until_str := self.request.query_params.get('until')) is not None:
+            try:
+                until = parse_datetime(until_str)
+            except ValueError:
+                until = None
+            if until is None:
+                raise ParseError('Invalid date-time string: ' + until_str)
+            q = q.exclude(time__gt=until)
+        if (since_str := self.request.query_params.get('since')) is not None:
+            try:
+                since = parse_datetime(since_str)
+            except ValueError:
+                since = None
+            if since is None:
+                raise ParseError('Invalid date-time string: ' + since_str)
+            q = q.exclude(time__lt=since)
+        q = q.order_by('-time')
+        if (limit_str := self.request.query_params.get('limit')) is not None:
+            if limit_str.isdigit():
+                q = q[:int(limit_str)]
+            else:
+                raise ParseError('Invalid limit: ' + limit_str)
+        return list(reversed(q))

@@ -8,6 +8,9 @@ router.register(r'conversations', views.ConversationViewSet)
 router.register(r'conversations/(?P<conversation_id>[\w-]+)/participants',
                 views.ConversationParticipantsViewSet,
                 basename='Participant')
+router.register(r'conversations/(?P<conversation_id>[\w-]+)/messages',
+                views.ConversationMessagesViewSet,
+                basename='Message')
 
 urlpatterns = [
     path('', include(router.urls)),
