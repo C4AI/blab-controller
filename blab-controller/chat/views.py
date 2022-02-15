@@ -69,6 +69,19 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
             participant.name = nickname
         participant.save()
 
+    @overrides
+    def create(self, request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
+        resp = super().create(request, *args, **kwargs)
+        participant_id = self.request.session.setdefault(
+            'participation_in_conversation', {}).get(resp.data['id'])
+        return Response(
+            {
+                'conversation': resp.data,
+                'my_participant_id': participant_id
+            },
+            status=resp.status_code,
+            headers=resp.headers)
+
     @action(detail=True, methods=['post'])
     def join(self, request: HttpRequest, *args: Any,
              **kwargs: Any) -> Response:
@@ -92,12 +105,15 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
                                            type=Participant.HUMAN,
                                            name=nickname)
             p.save()
+        participant_id = str(p.id)
         self.request.session['participation_in_conversation'][
-            conversation_id] = str(p.id)
+            conversation_id] = participant_id
         self.request.session.save()
-        ps = ParticipantSerializer(self.get_object().participants.all(),
-                                   many=True)
-        return Response(ps.data)
+        cs = ConversationSerializer(self.get_object())
+        return Response({
+            'conversation': cs.data,
+            'my_participant_id': participant_id
+        })
 
 
 class ConversationParticipantsViewSet(ListModelMixin, GenericViewSet):

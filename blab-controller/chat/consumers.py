@@ -54,12 +54,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             lambda: ParticipantSerializer(self.conversation.participants.all(),
                                           many=True).data)()
         await self.broadcast_state({'participants': participants})
-        await self.send_state({
-            'state': {
-                'conversation_name': self.conversation.name,
-                'my_participant_id': str(self.participant.id)
-            }
-        })
 
         if send_old_messages:
             await self.send_last_messages(500, msg.time)

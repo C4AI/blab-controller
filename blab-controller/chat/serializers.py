@@ -20,21 +20,23 @@ class ConversationOnListSerializer(ModelSerializer):
         fields = ('id', 'name', 'created_at', 'participant_count')
 
 
-class ConversationSerializer(ModelSerializer):
-    """Serialises a Conversation instance."""
-
-    class Meta:
-        model = Conversation
-        fields = ('id', 'name', 'created_at', 'participants')
-        read_only_fields = ['participants']
-
-
 class ParticipantSerializer(ModelSerializer):
     """Serialises a Participant instance."""
 
     class Meta:
         model = Participant
         fields = ('id', 'name', 'is_present', 'type')
+
+
+class ConversationSerializer(ModelSerializer):
+    """Serialises a Conversation instance."""
+
+    participants = ParticipantSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Conversation
+        fields = ('id', 'name', 'created_at', 'participants')
+        read_only_fields = ['participants']
 
 
 class SystemMessageSerializer(ModelSerializer):
