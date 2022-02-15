@@ -1,6 +1,4 @@
 import json
-from datetime import datetime
-from sys import maxsize
 from typing import Any, cast
 
 from asgiref.sync import sync_to_async
@@ -16,7 +14,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
     async def connect(self) -> None:
         self.joined_at = None
-        send_old_messages = True  # this may be changed later
         self.conversation_id = self.scope['url_route']['kwargs'][
             'conversation_id']
         session = await sync_to_async(lambda: dict(self.scope['session']))()
@@ -54,21 +51,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             lambda: ParticipantSerializer(self.conversation.participants.all(),
                                           many=True).data)()
         await self.broadcast_state({'participants': participants})
-
-        if send_old_messages:
-            await self.send_last_messages(500, msg.time)
-
-    async def send_last_messages(self,
-                                 limit: int = maxsize,
-                                 until: datetime = datetime.max) -> None:
-        last_messages = await database_sync_to_async(lambda: list(
-            map(
-                lambda msg: MessageSerializer(msg).data,  # type: ignore
-                Message.objects.filter(conversation_id=self.conversation_id).
-                exclude(time__gt=until).order_by('-time')[:limit])))()
-        for m in reversed(last_messages):
-            data = json.dumps({'message': m})
-            await self.send(text_data=data)
 
     async def send_message(self, event: dict[str, Any]) -> None:
         await self.send(text_data=json.dumps({'message': event['message']}))
