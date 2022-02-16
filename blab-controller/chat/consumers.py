@@ -5,6 +5,7 @@ from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.core.exceptions import ValidationError
+from overrides import overrides
 
 from .models import Conversation, Message, Participant
 from .serializers import MessageSerializer, ParticipantSerializer
@@ -12,6 +13,7 @@ from .serializers import MessageSerializer, ParticipantSerializer
 
 class ConversationConsumer(AsyncWebsocketConsumer):
 
+    @overrides
     async def connect(self) -> None:
         self.joined_at = None
         self.conversation_id = self.scope['url_route']['kwargs'][
@@ -28,7 +30,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                                            self.channel_name)
         await self.accept()
 
-        self.participant.is_present = True
         await database_sync_to_async(self.participant.save)()
 
         msg = await database_sync_to_async(Message.objects.create)(
@@ -64,6 +65,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             'state': state
         })
 
+    @overrides
     async def disconnect(self, code: int) -> None:
         msg = await database_sync_to_async(Message.objects.create)(
             type=Message.MessageType.SYSTEM,
@@ -74,9 +76,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 'participant_name': self.participant.name,
             })
         await database_sync_to_async(msg.save)()
-        p = self.participant
-        p.is_present = False
-        await database_sync_to_async(p.save)()
         await self.channel_layer.group_send(
             self.conversation_group_name, {
                 'type': 'send_message',
@@ -89,6 +88,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_discard(self.conversation_group_name,
                                                self.channel_name)
 
+    @overrides
     async def receive(self,
                       text_data: str | None = None,
                       bytes_data: bytes | None = None) -> None:

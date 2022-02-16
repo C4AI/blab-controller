@@ -36,7 +36,6 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
 
     def list(self, request: HttpRequest, *args: Any,
              **kwargs: Any) -> Response:
-        request.session['something'] = 'WORKS'
         return super().list(request, *args, **kwargs)
 
     @overrides
@@ -56,7 +55,6 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
         conversation_created_msg.save()
 
         participant = Participant.objects.create(conversation=conversation,
-                                                 is_present=True,
                                                  type=Participant.HUMAN,
                                                  name=nickname)
 
@@ -103,7 +101,6 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
                 pass
         if not p:
             p = Participant.objects.create(conversation=self.get_object(),
-                                           is_present=True,
                                            type=Participant.HUMAN,
                                            name=nickname)
             p.save()
@@ -130,6 +127,7 @@ class ConversationMessagesViewSet(ListModelMixin, GenericViewSet):
 
     serializer_class = MessageSerializer
 
+    @overrides
     def get_queryset(self) -> Iterable[Message]:
         conversation_id = str(self.kwargs['conversation_id'])
         existing = self.request.session.setdefault(

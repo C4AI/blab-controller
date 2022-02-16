@@ -25,7 +25,7 @@ class ParticipantSerializer(ModelSerializer):
 
     class Meta:
         model = Participant
-        fields = ('id', 'name', 'is_present', 'type')
+        fields = ('id', 'name', 'type')
 
 
 class ConversationSerializer(ModelSerializer):

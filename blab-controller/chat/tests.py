@@ -9,20 +9,16 @@ class ConversationTest(TestCase):
     def setUp(self) -> None:
         self.c = Conversation.objects.create()
         self.p1 = Participant.objects.create(name='P1',
-                                             is_present=True,
                                              type='H',
                                              conversation=self.c)
         self.p2 = Participant.objects.create(name='P2',
-                                             is_present=True,
                                              type='H',
                                              conversation=self.c)
         self.psys = Participant.objects.create(name='SYS',
-                                               is_present=True,
                                                type='S',
                                                conversation=self.c)
         self.c_other = Conversation.objects.create()
         self.p3 = Participant.objects.create(name='P3',
-                                             is_present=True,
                                              type='H',
                                              conversation=self.c_other)
 

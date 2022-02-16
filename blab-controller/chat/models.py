@@ -43,9 +43,6 @@ class Participant(models.Model):
     )
     """Participant name"""
 
-    is_present = models.BooleanField(gettext('is present'))
-    """Whether the participant is still in the conversation"""
-
     HUMAN = 'H'
     BOT = 'B'
     TYPE_CHOICES = [
