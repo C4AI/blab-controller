@@ -12,6 +12,7 @@ class ConversationOnListSerializer(ModelSerializer):
     """Serialises a Conversation instance."""
 
     participant_count = SerializerMethodField()
+    my_participant_id = SerializerMethodField()
 
     # noinspection PyMethodMayBeStatic
     def get_participant_count(self, conversation: Conversation) -> int:
@@ -25,9 +26,23 @@ class ConversationOnListSerializer(ModelSerializer):
         """
         return cast(int, conversation.participants.count())
 
+    def get_my_participant_id(self, conversation: Conversation) -> str | None:
+        """Return the participant id of the user in the conversation.
+
+        Args:
+            conversation: the conversation
+
+        Returns:
+            the participant id in the conversation, or `None` if the
+            session is not connected to the conversation
+        """
+        return self.context['request'].session.setdefault(
+            'participation_in_conversation', {}).get(str(conversation.id))
+
     class Meta:
         model = Conversation
-        fields = ('id', 'name', 'created_at', 'participant_count')
+        fields = ('id', 'name', 'created_at', 'participant_count',
+                  'my_participant_id')
 
 
 class ParticipantSerializer(ModelSerializer):
@@ -42,10 +57,25 @@ class ConversationSerializer(ModelSerializer):
     """Serialises a Conversation instance."""
 
     participants = ParticipantSerializer(many=True, read_only=True)
+    my_participant_id = SerializerMethodField()
+
+    def get_my_participant_id(self, conversation: Conversation) -> str | None:
+        """Return the participant id of the user in the conversation.
+
+        Args:
+            conversation: the conversation
+
+        Returns:
+            the participant id in the conversation, or `None` if the
+            session is not connected to the conversation
+        """
+        return self.context['request'].session.setdefault(
+            'participation_in_conversation', {}).get(str(conversation.id))
 
     class Meta:
         model = Conversation
-        fields = ('id', 'name', 'created_at', 'participants')
+        fields = ('id', 'name', 'created_at', 'participants',
+                  'my_participant_id')
         read_only_fields = ['participants']
 
 

@@ -7,7 +7,6 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-mypy = "^0.931"
 overrides = "^6.1.0"
 channels = "^3.0.4"
 channels-redis = "^3.3.1"
@@ -33,7 +32,7 @@ flake8-docstrings = "*"
 flake8-bugbear = "*"
 python-lsp-server = { extras = ["all"], version = "*" }
 pyupgrade = "*"
-mypy = "*"
+mypy = "^0.931"
 yapf = "*"
 pre-commit = "^2.16.0"
 Django = "^4.0.2"

@@ -74,19 +74,6 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
             participant.name = nickname
         participant.save()
 
-    @overrides
-    def create(self, request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
-        resp = super().create(request, *args, **kwargs)
-        participant_id = self.request.session.setdefault(
-            'participation_in_conversation', {}).get(resp.data['id'])
-        return Response(
-            {
-                'conversation': resp.data,
-                'my_participant_id': participant_id
-            },
-            status=resp.status_code,
-            headers=resp.headers)
-
     @action(detail=True, methods=['post'])
     def join(self, request: HttpRequest) -> Response:
         """Join a conversation.
@@ -124,10 +111,7 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
             conversation_id] = participant_id
         self.request.session.save()
         cs = ConversationSerializer(self.get_object())
-        return Response({
-            'conversation': cs.data,
-            'my_participant_id': participant_id
-        })
+        return Response(cs.data)
 
 
 class ConversationParticipantsViewSet(ListModelMixin, GenericViewSet):
