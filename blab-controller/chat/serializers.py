@@ -1,6 +1,6 @@
 from typing import Any, OrderedDict, cast
 
-from rest_framework.fields import CharField, JSONField, SerializerMethodField
+from rest_framework.fields import CharField, SerializerMethodField
 from rest_framework.serializers import BaseSerializer, ModelSerializer
 
 from .models import Conversation, Message, Participant
@@ -44,11 +44,10 @@ class SystemMessageSerializer(ModelSerializer):
 
     id = CharField(source='m_id')
     event = CharField(source='text')
-    data = JSONField(source='additional_metadata')
 
     class Meta:
         model = Message
-        fields = ('type', 'time', 'id', 'event', 'data')
+        fields = ('type', 'time', 'id', 'event', 'additional_metadata')
 
 
 class TextMessageSerializer(ModelSerializer):
