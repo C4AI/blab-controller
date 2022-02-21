@@ -1,5 +1,7 @@
+"""Contains serialising routines."""
 from typing import Any, OrderedDict, cast
 
+from overrides import overrides
 from rest_framework.fields import CharField, SerializerMethodField
 from rest_framework.serializers import BaseSerializer, ModelSerializer
 
@@ -12,8 +14,16 @@ class ConversationOnListSerializer(ModelSerializer):
     participant_count = SerializerMethodField()
 
     # noinspection PyMethodMayBeStatic
-    def get_participant_count(self, obj: Conversation) -> int:
-        return cast(int, obj.participants.count())
+    def get_participant_count(self, conversation: Conversation) -> int:
+        """Count the number of participants in the conversation.
+
+        Args:
+            conversation: the conversation
+
+        Returns:
+            how many participants there are in the conversation
+        """
+        return cast(int, conversation.participants.count())
 
     class Meta:
         model = Conversation
@@ -77,6 +87,7 @@ class MessageSerializer(BaseSerializer):
             return TextMessageSerializer(instance)
         raise NotImplementedError
 
+    @overrides
     def to_representation(self,
                           instance: Message) -> OrderedDict[Any, Any | None]:
         serializer = self._get_serializer_for_instance(instance)

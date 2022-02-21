@@ -1,3 +1,5 @@
+"""Views for conversations, messages and other related entities."""
+
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
@@ -28,6 +30,7 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
     class Meta:
         read_only_fields = ['participants']
 
+    @overrides
     def get_serializer_class(self) -> type:
         a = getattr(self, 'action', None)
         if a == 'list':
@@ -35,6 +38,7 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
         else:
             return ConversationSerializer
 
+    @overrides
     def list(self, request: HttpRequest, *args: Any,
              **kwargs: Any) -> Response:
         return super().list(request, *args, **kwargs)
@@ -84,8 +88,18 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
             headers=resp.headers)
 
     @action(detail=True, methods=['post'])
-    def join(self, request: HttpRequest, *args: Any,
-             **kwargs: Any) -> Response:
+    def join(self, request: HttpRequest) -> Response:
+        """Join a conversation.
+
+        Raises:
+            ValidationError: if some validation fails
+
+        Args:
+            request: the HTTP request
+
+        Returns:
+            the HTTP response
+        """
         nick_key = 'nickname'
         nickname = (request.data.get(nick_key or None)
                     or request.session.get(nick_key, None) or '')
@@ -117,14 +131,18 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
 
 
 class ConversationParticipantsViewSet(ListModelMixin, GenericViewSet):
+    """API endpoint that allows access to conversation participants."""
+
     serializer_class = ParticipantSerializer
 
+    @overrides
     def get_queryset(self) -> QuerySet:
         return Participant.objects.filter(
             conversation=self.kwargs.get('conversation_id'))
 
 
 class ConversationMessagesViewSet(ListModelMixin, GenericViewSet):
+    """API endpoint that allows access to conversation messages."""
 
     serializer_class = MessageSerializer
 

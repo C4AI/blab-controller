@@ -1,3 +1,5 @@
+"""Defines the consumers that handle connections based on the request paths."""
+
 from django.urls import re_path
 
 from . import consumers

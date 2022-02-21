@@ -1,3 +1,4 @@
+"""Contains Websocket consumers."""
 import json
 from typing import Any, cast
 
@@ -12,6 +13,7 @@ from .serializers import MessageSerializer, ParticipantSerializer
 
 
 class ConversationConsumer(AsyncWebsocketConsumer):
+    """Websocket consumer for conversations and messages."""
 
     @overrides
     async def connect(self) -> None:
@@ -54,12 +56,27 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         await self.broadcast_state({'participants': participants})
 
     async def send_message(self, event: dict[str, Any]) -> None:
+        """Send message to this participant.
+
+        Args:
+            event: message represented as a dictionary
+        """
         await self.send(text_data=json.dumps({'message': event['message']}))
 
     async def send_state(self, event: dict[str, Any]) -> None:
+        """Send state data to this participant.
+
+        Args:
+            event: state represented as a dictionary
+        """
         await self.send(text_data=json.dumps({'state': event['state']}))
 
     async def broadcast_state(self, state: dict[str, Any]) -> None:
+        """Send state data to all participants.
+
+        Args:
+            state: state represented as a dictionary
+        """
         await self.channel_layer.group_send(self.conversation_group_name, {
             'type': 'send_state',
             'state': state
@@ -119,12 +136,11 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             else:
                 raise Exception('UNSUPPORTED TYPE')
 
-        msg = await self.create_message(
-            t, {
-                **message_data, 'type': t,
-                'conversation_id': self.conversation_id,
-                'sender': self.participant
-            })
+        msg = await self.create_message({
+            **message_data, 'type': t,
+            'conversation_id': self.conversation_id,
+            'sender': self.participant
+        })
         if msg:
             await self.channel_layer.group_send(
                 self.conversation_group_name, {
@@ -133,8 +149,20 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 })
 
     @database_sync_to_async
-    def create_message(self, message_type: str,
-                       message_data: dict[str, Any]) -> Message | None:
+    def create_message(self, message_data: dict[str, Any]) -> Message | None:
+        """Create a message and save it to the database.
+
+        Args:
+            message_data: message parameters and data
+
+        Raises:
+            ValidationError: if validation fails
+
+        Returns:
+            the new instance of :cls:`Message` if it was saved successfully,
+            or ``None`` if it was not saved because it is duplicate (same
+            ``local_id`` and sender as an existing message).
+        """
         try:
             message = Message.objects.create(**message_data)
             message.save()
