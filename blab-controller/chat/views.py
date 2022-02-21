@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any, Iterable
 
 from django.db.models import Model, QuerySet
@@ -141,13 +142,17 @@ class ConversationMessagesViewSet(ListModelMixin, GenericViewSet):
         if not p:
             raise PermissionDenied('You are not in this conversation.')
         q = Message.objects.filter(conversation_id=conversation_id)
+        now = datetime.now(timezone.utc)
         if (until_str := self.request.query_params.get('until')) is not None:
             try:
                 until = parse_datetime(until_str)
             except ValueError:
                 until = None
             if until is None:
-                raise ParseError('Invalid date-time string: ' + until_str)
+                if until_str == 'now':
+                    until = now
+                else:
+                    raise ParseError('Invalid date-time string: ' + until_str)
             q = q.exclude(time__gt=until)
         if (since_str := self.request.query_params.get('since')) is not None:
             try:
@@ -155,7 +160,10 @@ class ConversationMessagesViewSet(ListModelMixin, GenericViewSet):
             except ValueError:
                 since = None
             if since is None:
-                raise ParseError('Invalid date-time string: ' + since_str)
+                if since_str == 'now':
+                    since = now
+                else:
+                    raise ParseError('Invalid date-time string: ' + since_str)
             q = q.exclude(time__lt=since)
         q = q.order_by('-time')
         if (limit_str := self.request.query_params.get('limit')) is not None:
