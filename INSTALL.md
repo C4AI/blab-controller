@@ -86,6 +86,8 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   poetry run ./blab-controller/manage.py runserver
   ```
 
+  Open http://localhost:8080/api/chat/ to see the REST API (append `/_docs/` to see the OpenAPI description).
+
 - **(In production environment)** <br/>
   Follow [Django's instructions](https://docs.djangoproject.com/en/4.0/howto/deployment/) to set up the interaction
   between the web server and the controller written in Python.

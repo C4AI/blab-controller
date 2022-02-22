@@ -15,7 +15,8 @@ Markdown = "^3.3.6"
 django-filter = "^21.1"
 django-cors-headers = "^3.11.0"
 python-dotenv = "^0.19.2"
-
+PyYAML = "^6.0"
+uritemplate = "^4.1.1"
 
 [build-system]
 requires = ["poetry-core"]
@@ -64,6 +65,7 @@ optional = true
 optional = true
 
 [tool.poetry.group.docs.dependencies]
+
 
 [tool.poetry.group.test]
 optional = true
