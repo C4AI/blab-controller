@@ -75,7 +75,7 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
         participant.save()
 
     @action(detail=True, methods=['post'])
-    def join(self, request: HttpRequest) -> Response:
+    def join(self, request: HttpRequest, pk: Any | None = None) -> Response:
         """Join a conversation.
 
         Raises:
@@ -83,6 +83,7 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
 
         Args:
             request: the HTTP request
+            pk: not used
 
         Returns:
             the HTTP response
@@ -110,7 +111,8 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
         self.request.session['participation_in_conversation'][
             conversation_id] = participant_id
         self.request.session.save()
-        cs = ConversationSerializer(self.get_object())
+        cs = ConversationSerializer(self.get_object(),
+                                    context={'request': request})
         return Response(cs.data)
 
 
