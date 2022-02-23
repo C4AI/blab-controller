@@ -53,7 +53,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             text=Message.SystemEvent.JOINED,
             additional_metadata={
                 'participant_id': str(self.participant.id),
-                'participant_name': self.participant.name
             },
             conversation_id=self.conversation_id)
         database_sync_to_async(msg.save)()
@@ -109,7 +108,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             text=Message.SystemEvent.LEFT,
             additional_metadata={
                 'participant_id': str(self.participant.id),
-                'participant_name': self.participant.name,
             })
         await database_sync_to_async(msg.save)()
         await self.channel_layer.group_send(
