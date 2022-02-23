@@ -89,7 +89,13 @@ class ConditionalFields:
 
     def __call__(self, field_name: str, condition: Callable[[Message],
                                                             bool]) -> None:
-        """Add a field name and its condition."""
+        """Add a field name and its condition.
+
+        Args:
+            field_name: name of the field
+            condition: function that returns whether the field should be used
+                for a given instance
+        """
         self._conditions[field_name] = condition
 
     def __getitem__(self, field_name: str) -> Callable[[Message], bool]:

@@ -57,12 +57,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             conversation_id=self.conversation_id)
         database_sync_to_async(msg.save)()
 
-        await self.channel_layer.group_send(
-            self.conversation_group_name, {
-                'type': 'send_message',
-                'message': MessageSerializer(msg).data,
-            })
-
         participants = await database_sync_to_async(
             lambda: ParticipantSerializer(self.conversation.participants.all(),
                                           many=True).data)()
@@ -100,6 +94,21 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 'state': state
             })
 
+    @classmethod
+    async def broadcast_message(cls, conversation_id: str,
+                                message: Message) -> None:
+        """Send a message to all participants.
+
+        Args:
+            conversation_id: id of the conversation
+            message: message to be sent
+        """
+        await get_channel_layer().group_send(
+            _conversation_id_to_group_name(conversation_id), {
+                'type': 'send_message',
+                'message': MessageSerializer(message).data
+            })
+
     @overrides
     async def disconnect(self, code: int) -> None:
         msg = await database_sync_to_async(Message.objects.create)(
@@ -110,11 +119,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 'participant_id': str(self.participant.id),
             })
         await database_sync_to_async(msg.save)()
-        await self.channel_layer.group_send(
-            self.conversation_group_name, {
-                'type': 'send_message',
-                'message': MessageSerializer(msg).data
-            })
+
         participants = await database_sync_to_async(
             lambda: ParticipantSerializer(self.conversation.participants.all(),
                                           many=True).data)()
@@ -154,17 +159,11 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             else:
                 raise Exception('UNSUPPORTED TYPE')
 
-        msg = await self.create_message({
+        await self.create_message({
             **message_data, 'type': t,
             'conversation_id': self.conversation_id,
             'sender': self.participant
         })
-        if msg:
-            await self.channel_layer.group_send(
-                self.conversation_group_name, {
-                    'type': 'send_message',
-                    'message': MessageSerializer(msg).data
-                })
 
     @database_sync_to_async
     def create_message(self, message_data: dict[str, Any]) -> Message | None:
@@ -183,7 +182,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         """
         try:
             message = Message.objects.create(**message_data)
-            message.save()
         except ValidationError as e:
             err = getattr(e, 'error_dict', {}).get('__all__', [])
             if len(err) == 1 and getattr(err[0], 'code',
@@ -194,7 +192,6 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                     # Ignore duplicate message
                     return None
             raise
-        message.save()
         return cast(Message, message)
 
 
@@ -210,6 +207,15 @@ def _participant_watcher(sender: Any, instance: Participant,
             ParticipantSerializer(instance.conversation.participants.all(),
                                   many=True).data
         })
+
+
+# noinspection PyUnusedLocal
+@receiver([post_save, post_delete],
+          sender=Message,
+          dispatch_uid='message_watcher')
+def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
+    async_to_sync(ConversationConsumer.broadcast_message)(
+        instance.conversation.id, instance)
 
 
 __all__ = [ConversationConsumer]
