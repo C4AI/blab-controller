@@ -2,14 +2,29 @@
 import json
 from typing import Any, cast
 
-from asgiref.sync import sync_to_async
+from asgiref.sync import async_to_sync, sync_to_async
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.layers import get_channel_layer
 from django.core.exceptions import ValidationError
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
 from overrides import overrides
 
 from .models import Conversation, Message, Participant
 from .serializers import MessageSerializer, ParticipantSerializer
+
+
+def _conversation_id_to_group_name(conversation_id: str) -> str:
+    """Return the Websocket group name correspondent to a conversation.
+
+    Args:
+        conversation_id: id of the conversation
+
+    Returns:
+        the group name
+    """
+    return 'conversation_' + str(conversation_id)
 
 
 class ConversationConsumer(AsyncWebsocketConsumer):
@@ -27,12 +42,11 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             lambda: Participant.objects.get(pk=participant_id))()
         self.conversation = await database_sync_to_async(
             lambda: Conversation.objects.get(pk=self.conversation_id))()
-        self.conversation_group_name = 'conversation_' + self.conversation_id
+        self.conversation_group_name = _conversation_id_to_group_name(
+            self.conversation_id)
         await self.channel_layer.group_add(self.conversation_group_name,
                                            self.channel_name)
         await self.accept()
-
-        await database_sync_to_async(self.participant.save)()
 
         msg = await database_sync_to_async(Message.objects.create)(
             type=Message.MessageType.SYSTEM,
@@ -53,7 +67,8 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         participants = await database_sync_to_async(
             lambda: ParticipantSerializer(self.conversation.participants.all(),
                                           many=True).data)()
-        await self.broadcast_state({'participants': participants})
+        await ConversationConsumer.broadcast_state(
+            self.conversation_id, {'participants': participants})
 
     async def send_message(self, event: dict[str, Any]) -> None:
         """Send message to this participant.
@@ -71,16 +86,20 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         """
         await self.send(text_data=json.dumps({'state': event['state']}))
 
-    async def broadcast_state(self, state: dict[str, Any]) -> None:
+    @classmethod
+    async def broadcast_state(cls, conversation_id: str,
+                              state: dict[str, Any]) -> None:
         """Send state data to all participants.
 
         Args:
+            conversation_id: id of the conversation
             state: state represented as a dictionary
         """
-        await self.channel_layer.group_send(self.conversation_group_name, {
-            'type': 'send_state',
-            'state': state
-        })
+        await get_channel_layer().group_send(
+            _conversation_id_to_group_name(conversation_id), {
+                'type': 'send_state',
+                'state': state
+            })
 
     @overrides
     async def disconnect(self, code: int) -> None:
@@ -101,7 +120,8 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         participants = await database_sync_to_async(
             lambda: ParticipantSerializer(self.conversation.participants.all(),
                                           many=True).data)()
-        await self.broadcast_state({'participants': participants})
+        await ConversationConsumer.broadcast_state(
+            self.conversation_id, {'participants': participants})
         await self.channel_layer.group_discard(self.conversation_group_name,
                                                self.channel_name)
 
@@ -178,3 +198,19 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             raise
         message.save()
         return cast(Message, message)
+
+
+@receiver([post_save, post_delete],
+          sender=Participant,
+          dispatch_uid='participant_watcher')
+def _participant_watcher(_sender: Any, instance: Participant,
+                         **_kwargs: Any) -> None:
+    async_to_sync(ConversationConsumer.broadcast_state)(
+        instance.conversation.id, {
+            'participants':
+            ParticipantSerializer(instance.conversation.participants.all(),
+                                  many=True).data
+        })
+
+
+__all__ = [ConversationConsumer]

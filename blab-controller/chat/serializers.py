@@ -51,6 +51,7 @@ class ParticipantSerializer(ModelSerializer):
     class Meta:
         model = Participant
         fields = ('id', 'name', 'type')
+        read_only_fields = ('id', 'type')
 
 
 class ConversationSerializer(ModelSerializer):

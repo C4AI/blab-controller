@@ -11,7 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import (ParseError, PermissionDenied,
                                        ValidationError)
 from rest_framework.mixins import (CreateModelMixin, ListModelMixin,
-                                   RetrieveModelMixin)
+                                   RetrieveModelMixin, UpdateModelMixin)
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.viewsets import GenericViewSet
@@ -116,7 +116,8 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
         return Response(cs.data)
 
 
-class ConversationParticipantsViewSet(ListModelMixin, GenericViewSet):
+class ConversationParticipantsViewSet(ListModelMixin, UpdateModelMixin,
+                                      RetrieveModelMixin, GenericViewSet):
     """API endpoint that allows access to conversation participants."""
 
     serializer_class = ParticipantSerializer
