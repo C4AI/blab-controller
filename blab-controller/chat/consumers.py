@@ -200,11 +200,12 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         return cast(Message, message)
 
 
+# noinspection PyUnusedLocal
 @receiver([post_save, post_delete],
           sender=Participant,
           dispatch_uid='participant_watcher')
-def _participant_watcher(_sender: Any, instance: Participant,
-                         **_kwargs: Any) -> None:
+def _participant_watcher(sender: Any, instance: Participant,
+                         **kwargs: Any) -> None:
     async_to_sync(ConversationConsumer.broadcast_state)(
         instance.conversation.id, {
             'participants':

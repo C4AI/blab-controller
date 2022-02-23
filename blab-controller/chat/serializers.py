@@ -126,8 +126,8 @@ class MessageSerializer(ModelSerializer):
                                   allow_null=True)
     conditional('quoted_message_id', _only_non_system)
 
-    sender = ParticipantSerializer()
-    conditional('sender', _only_non_system)
+    sender_id = CharField(read_only=True)
+    conditional('sender_id', _only_non_system)
 
     conditional('local_id', _only_non_system)
     conditional('text', _only_non_system)
@@ -169,7 +169,7 @@ class MessageSerializer(ModelSerializer):
             'additional_metadata',
             # non-system messages
             'quoted_message_id',
-            'sender',
+            'sender_id',
             'local_id',
             'text',
         )
