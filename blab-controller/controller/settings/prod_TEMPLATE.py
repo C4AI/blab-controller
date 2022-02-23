@@ -23,6 +23,19 @@ INSTALLED_APPS += [
 
 ##########################################################################
 
+INSTALLED_BOTS = {
+    'ECHO': ('chat.bots', 'UpperCaseEchoBot', []),
+    'Calculator': ('chat.bots', 'CalculatorBot', []),
+
+}
+"""Installed bots.
+
+Each key is the bot name, and the value is a 3-tuple
+(module, class, additional constructor arguments).
+"""
+
+##########################################################################
+
 ALLOWED_HOSTS = [
     'localhost',           # local connections should be allowed
     # 'example.com',       # domain

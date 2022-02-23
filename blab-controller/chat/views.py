@@ -13,9 +13,10 @@ from rest_framework.exceptions import (ParseError, PermissionDenied,
 from rest_framework.mixins import (CreateModelMixin, ListModelMixin,
                                    RetrieveModelMixin, UpdateModelMixin)
 from rest_framework.response import Response
-from rest_framework.serializers import Serializer
+from rest_framework.serializers import BaseSerializer, Serializer
 from rest_framework.viewsets import GenericViewSet
 
+from .bots import all_bots
 from .models import Conversation, Message, Participant
 from .serializers import (ConversationOnListSerializer, ConversationSerializer,
                           MessageSerializer, ParticipantSerializer)
@@ -46,10 +47,20 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
     @overrides
     def perform_create(self, serializer: Serializer) -> None:
         nick_key = 'nickname'
-        nickname = (self.request.data.get(nick_key or None)
+        nickname = (self.request.data.get(nick_key, None)
                     or self.request.session.get(nick_key, None) or '')
         if not isinstance(nickname, str):
             raise ValidationError('nickname must be a string')
+
+        bots_key = 'bots'
+        bots = self.request.data.get(bots_key, [])
+        if not isinstance(bots, list) or any(
+                b for b in bots if not isinstance(b, str)):
+            raise ValidationError('Invalid bot array:' + str(bots))
+        available_bots = all_bots()
+        missing_bots = [b for b in bots if b not in available_bots]
+        if missing_bots:
+            raise ValidationError('Bot(s) not found: ' + str(missing_bots))
 
         conversation = serializer.save()
         conversation_created_msg = Message(
@@ -73,6 +84,19 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
             nickname = 'ANON_' + str(participant.id)
             participant.name = nickname
         participant.save()
+
+        for b in bots:
+            bot_participant = Participant.objects.create(
+                conversation=conversation, type=Participant.BOT, name=b)
+            bot_joined_msg = Message(
+                conversation=conversation,
+                type=Message.MessageType.SYSTEM,
+                text=Message.SystemEvent.JOINED,
+                additional_metadata={
+                    'participant_id': str(bot_participant.id),
+                },
+            )
+            bot_joined_msg.save()
 
     @action(detail=True, methods=['post'])
     def join(self, request: HttpRequest, pk: Any | None = None) -> Response:
@@ -177,3 +201,18 @@ class ConversationMessagesViewSet(ListModelMixin, GenericViewSet):
             else:
                 raise ParseError('Invalid limit: ' + limit_str)
         return list(reversed(q))
+
+
+class BotsViewSet(ListModelMixin, GenericViewSet):
+    """API endpoint that allows access to the list of available bots."""
+
+    # noinspection PyAbstractClass
+    class Identity(BaseSerializer):
+
+        @overrides
+        def to_representation(self, instance: str) -> str:
+            return instance
+
+    serializer_class = Identity
+
+    queryset = list(all_bots().keys())

@@ -15,6 +15,11 @@ router.register(r'conversations/(?P<conversation_id>[\w-]+)/messages',
                 views.ConversationMessagesViewSet,
                 basename='Message')
 
+paths_without_model = [
+    path('bots/', views.BotsViewSet.as_view({'get': 'list'}),
+         name='bots-view'),
+]
+
 urlpatterns = [
     path(r'_docs/',
          TemplateView.as_view(template_name='swagger-ui.html',
@@ -27,4 +32,5 @@ urlpatterns = [
                          public=True),
          name='openapi-schema'),
     path('', include(router.urls)),
+    *paths_without_model,
 ]

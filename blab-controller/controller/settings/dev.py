@@ -33,3 +33,8 @@ CORS_ORIGIN_WHITELIST = [
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
 ]
+
+INSTALLED_BOTS = {
+    'ECHO': ('chat.bots', 'UpperCaseEchoBot', []),
+    'Calculator': ('chat.bots', 'CalculatorBot', []),
+}

@@ -1,5 +1,6 @@
 """Contains Websocket consumers."""
 import json
+from importlib import import_module
 from typing import Any, cast
 
 from asgiref.sync import async_to_sync, sync_to_async
@@ -11,6 +12,7 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from overrides import overrides
 
+from .bots import all_bots
 from .models import Conversation, Message, Participant
 from .serializers import MessageSerializer, ParticipantSerializer
 
@@ -103,10 +105,12 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             conversation_id: id of the conversation
             message: message to be sent
         """
+        data = await database_sync_to_async(
+            lambda: MessageSerializer(message).data)()
         await get_channel_layer().group_send(
             _conversation_id_to_group_name(conversation_id), {
                 'type': 'send_message',
-                'message': MessageSerializer(message).data
+                'message': data
             })
 
     @overrides
@@ -198,7 +202,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 # noinspection PyUnusedLocal
 @receiver([post_save, post_delete],
           sender=Participant,
-          dispatch_uid='participant_watcher')
+          dispatch_uid='consumer_participant_watcher')
 def _participant_watcher(sender: Any, instance: Participant,
                          **kwargs: Any) -> None:
     async_to_sync(ConversationConsumer.broadcast_state)(
@@ -210,12 +214,31 @@ def _participant_watcher(sender: Any, instance: Participant,
 
 
 # noinspection PyUnusedLocal
-@receiver([post_save, post_delete],
-          sender=Message,
-          dispatch_uid='message_watcher')
+@receiver([post_save], sender=Message, dispatch_uid='consumer_message_watcher')
 def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
     async_to_sync(ConversationConsumer.broadcast_message)(
         instance.conversation.id, instance)
+
+    # bots
+    bots = all_bots()
+    use_bots = []
+    for p in instance.conversation.participants.all():
+        if p.type == Participant.BOT:
+            try:
+                bot_spec = bots[p.name]
+            except KeyError:
+                pass
+            else:
+                use_bots.append((bot_spec, p.id))
+    for (module_name, cls_name, args), bot_participant_id in use_bots:
+        m = import_module(module_name)
+        cls = m
+        for c in cls_name.split('.'):
+            cls = getattr(cls, c)
+        # TODO: create a singleton per bot and reuse it
+        # noinspection PyCallingNonCallable
+        bot_instance = cls(bot_participant_id, *args)
+        bot_instance.receive_message(instance)
 
 
 __all__ = [ConversationConsumer]
