@@ -1,11 +1,10 @@
 """Views for conversations, messages and other related entities."""
-
+from collections import namedtuple
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
 from django.conf import settings
 from django.db.models import Model, QuerySet
-from django.http import HttpRequest
 from django.utils.dateparse import parse_datetime
 from overrides import overrides
 from rest_framework.decorators import action
@@ -13,6 +12,7 @@ from rest_framework.exceptions import (ParseError, PermissionDenied,
                                        ValidationError)
 from rest_framework.mixins import (CreateModelMixin, ListModelMixin,
                                    RetrieveModelMixin, UpdateModelMixin)
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer, Serializer
 from rest_framework.viewsets import GenericViewSet
@@ -41,8 +41,7 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
             return ConversationSerializer
 
     @overrides
-    def list(self, request: HttpRequest, *args: Any,
-             **kwargs: Any) -> Response:
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         return super().list(request, *args, **kwargs)
 
     @overrides
@@ -100,7 +99,7 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
             bot_joined_msg.save()
 
     @action(detail=True, methods=['post'])
-    def join(self, request: HttpRequest, pk: Any | None = None) -> Response:
+    def join(self, request: Request, pk: Any | None = None) -> Response:
         """Join a conversation.
 
         Raises:
@@ -153,23 +152,41 @@ class ConversationParticipantsViewSet(ListModelMixin, UpdateModelMixin,
             conversation=self.kwargs.get('conversation_id'))
 
 
-class ConversationMessagesViewSet(ListModelMixin, GenericViewSet):
+class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin,
+                                  GenericViewSet):
     """API endpoint that allows access to conversation messages."""
 
     serializer_class = MessageSerializer
 
     @overrides
-    def get_queryset(self) -> Iterable[Message]:
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Model:
+        conversation_id = str(self.kwargs['conversation_id'])
+        participant = self._get_participant()
+        if not participant:
+            raise PermissionDenied('You are not in this conversation.')
+
+        return super().create(
+            namedtuple('Request', ['data'])({
+                **request.data,
+                'conversation_id': conversation_id,
+                'sender_id': str(participant.id),
+            }), *args, **kwargs)
+
+    def _get_participant(self) -> Participant | None:
         conversation_id = str(self.kwargs['conversation_id'])
         existing = self.request.session.setdefault(
             'participation_in_conversation', {}).get(conversation_id, None)
-        p = None
         if existing:
             try:
-                p = Participant.objects.get(pk=existing)
+                return Participant.objects.get(pk=existing)
             except Model.DoesNotExist:
-                pass
-        if not p:
+                return None
+        return None
+
+    @overrides
+    def get_queryset(self) -> Iterable[Message]:
+        conversation_id = str(self.kwargs['conversation_id'])
+        if not self._get_participant():
             raise PermissionDenied('You are not in this conversation.')
         q = Message.objects.filter(conversation_id=conversation_id)
         now = datetime.now(timezone.utc)
@@ -204,17 +221,18 @@ class ConversationMessagesViewSet(ListModelMixin, GenericViewSet):
         return list(reversed(q))
 
 
+# noinspection PyAbstractClass
+class _Identity(BaseSerializer):
+
+    @overrides
+    def to_representation(self, instance: str) -> str:
+        return instance
+
+
 class BotsViewSet(ListModelMixin, GenericViewSet):
     """API endpoint that allows access to the list of available bots."""
 
-    # noinspection PyAbstractClass
-    class Identity(BaseSerializer):
-
-        @overrides
-        def to_representation(self, instance: str) -> str:
-            return instance
-
-    serializer_class = Identity
+    serializer_class = _Identity
 
     queryset = list(all_bots().keys())
 
@@ -222,8 +240,10 @@ class BotsViewSet(ListModelMixin, GenericViewSet):
 class LimitsViewSet(RetrieveModelMixin, GenericViewSet):
     """API endpoint that allows access to the chat limits."""
 
+    serializer_class = _Identity
+
     # noinspection PyUnusedLocal
     @overrides
-    def retrieve(self, request: HttpRequest, *args: Any,
+    def retrieve(self, request: Request, *args: Any,
                  **kwargs: Any) -> Response:
         return Response(settings.CHAT_LIMITS)

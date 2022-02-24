@@ -1,7 +1,9 @@
 """Contains serialising routines."""
 from typing import Any, Callable, cast
 
+from django.db.models import Model
 from overrides import overrides
+from rest_framework.exceptions import ValidationError
 from rest_framework.fields import CharField, SerializerMethodField
 from rest_framework.serializers import ModelSerializer
 
@@ -120,7 +122,7 @@ class MessageSerializer(ModelSerializer):
 
     conditional = ConditionalFields()
 
-    id = CharField(source='m_id')
+    id = CharField(source='m_id', read_only=True)
 
     additional_metadata = SerializerMethodField()
     conditional('additional_metadata', _only_system)
@@ -129,7 +131,8 @@ class MessageSerializer(ModelSerializer):
     conditional('event', _only_system)
 
     quoted_message_id = CharField(source='quoted_message.m_id',
-                                  allow_null=True)
+                                  allow_null=True,
+                                  required=False)
     conditional('quoted_message_id', _only_non_system)
 
     sender_id = CharField(read_only=True)
@@ -152,6 +155,34 @@ class MessageSerializer(ModelSerializer):
         if message.type == Message.MessageType.SYSTEM:
             return message.additional_metadata
         return None
+
+    @overrides
+    def create(self, validated_data: dict[str, Any]) -> Model:
+        message_type = validated_data.get('type', None)
+        if message_type == Message.MessageType.SYSTEM:
+            raise ValidationError(
+                {'type': ['You cannot create system messages.']})
+        return Message.objects.create(**validated_data)
+
+    @overrides
+    def to_internal_value(self, data: dict[str, Any]) -> dict[str, Any]:
+        d = super().to_internal_value(data)
+        quoted_message_m_id = d.pop('quoted_message', {}).get('m_id', None)
+        quoted_message = None
+        if quoted_message_m_id:
+            try:
+                quoted_message = Message.objects.get(m_id=quoted_message_m_id)
+            except Message.DoesNotExist:
+                raise ValidationError({
+                    'quoted_message_id':
+                    ['The quoted message does not exist.']
+                })
+        d['quoted_message_id'] = quoted_message.id if quoted_message else None
+
+        # these fields are filled by the controller's code
+        d['conversation_id'] = data['conversation_id']
+        d['sender_id'] = data['sender_id']
+        return d
 
     @overrides
     def to_representation(self, instance: Message) -> dict[str, Any]:

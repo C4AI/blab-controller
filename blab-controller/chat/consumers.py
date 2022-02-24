@@ -136,38 +136,12 @@ class ConversationConsumer(AsyncWebsocketConsumer):
     async def receive(self,
                       text_data: str | None = None,
                       bytes_data: bytes | None = None) -> None:
-        message_data = {}
-        t = None
         if text_data:
             m = json.loads(text_data)
-            quoted_message_id = m.get('quoted_message_id', None)
-
-            if quoted_message_id:
-                quoted_message = await database_sync_to_async(
-                    lambda: Message.objects.filter(m_id=quoted_message_id
-                                                   ).first())()
-                quoted_message_conversation_id = await database_sync_to_async(
-                    lambda: str(quoted_message.conversation.id)
-                    if quoted_message else None)()
-                if (quoted_message_conversation_id == self.conversation_id):
-                    message_data['quoted_message'] = quoted_message
-
-            t = m.get('type', None)
-            if t == Message.MessageType.TEXT:
-                text = m.get('text', '')
-                if not text or not isinstance(text, str):
-                    return
-                message_data['text'] = text
-                if 'local_id' in m:
-                    message_data['local_id'] = m['local_id']
-            else:
-                raise Exception('UNSUPPORTED TYPE')
-
-        await self.create_message({
-            **message_data, 'type': t,
-            'conversation_id': self.conversation_id,
-            'sender': self.participant
-        })
+            await self.create_message({
+                **m, 'conversation_id': self.conversation_id,
+                'sender_id': self.participant.id
+            })
 
     @database_sync_to_async
     def create_message(self, message_data: dict[str, Any]) -> Message | None:
@@ -185,7 +159,9 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             ``local_id`` and sender as an existing message).
         """
         try:
-            message = Message.objects.create(**message_data)
+            serializer = MessageSerializer(data=message_data)
+            serializer.is_valid(raise_exception=True)
+            message = serializer.save()
         except ValidationError as e:
             err = getattr(e, 'error_dict', {}).get('__all__', [])
             if len(err) == 1 and getattr(err[0], 'code',
