@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
+from django.conf import settings
 from django.db.models import Model, QuerySet
 from django.http import HttpRequest
 from django.utils.dateparse import parse_datetime
@@ -216,3 +217,13 @@ class BotsViewSet(ListModelMixin, GenericViewSet):
     serializer_class = Identity
 
     queryset = list(all_bots().keys())
+
+
+class LimitsViewSet(RetrieveModelMixin, GenericViewSet):
+    """API endpoint that allows access to the chat limits."""
+
+    # noinspection PyUnusedLocal
+    @overrides
+    def retrieve(self, request: HttpRequest, *args: Any,
+                 **kwargs: Any) -> Response:
+        return Response(settings.CHAT_LIMITS)

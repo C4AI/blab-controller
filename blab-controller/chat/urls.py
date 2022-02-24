@@ -18,6 +18,9 @@ router.register(r'conversations/(?P<conversation_id>[\w-]+)/messages',
 paths_without_model = [
     path('bots/', views.BotsViewSet.as_view({'get': 'list'}),
          name='bots-view'),
+    path('limits/',
+         views.LimitsViewSet.as_view({'get': 'retrieve'}),
+         name='limits-view'),
 ]
 
 urlpatterns = [
