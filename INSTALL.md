@@ -57,8 +57,8 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   poetry install --only=SQLite3
   ```
 
-- Set the following environment variables. This can be done using system tools, cloud server settings [or a secret *
-  .env* file](https://github.com/theskumar/python-dotenv) in the same directory as *manage.py*.
+- Set the following environment variables. This can be done using system tools, cloud server settings [or a secret 
+  *.env* file](https://github.com/theskumar/python-dotenv) in the same directory as *manage.py*.
 
     - `DJANGO_SETTINGS_MODULE`: define it as _controller.settings.dev_ or _controller.settings.prod_ (for development
       and production environments, respectively).
