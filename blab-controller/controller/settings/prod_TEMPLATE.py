@@ -80,6 +80,11 @@ CHAT_LIMITS = {k: 0 for k in CHAT_LIMITS}
 
 ##########################################################################
 
+MEDIA_ROOT = BASE_DIR / '.media'
+"""Path where files uploaded by users will be saved."""
+
+##########################################################################
+
 ALLOWED_HOSTS = [
     'localhost',           # local connections should be allowed
     # 'example.com',       # domain

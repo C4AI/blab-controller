@@ -4,7 +4,8 @@ from typing import Any, Callable, cast
 from django.db.models import Model
 from overrides import overrides
 from rest_framework.exceptions import ValidationError
-from rest_framework.fields import CharField, SerializerMethodField
+from rest_framework.fields import (CharField, FileField, IntegerField,
+                                   SerializerMethodField)
 from rest_framework.serializers import ModelSerializer
 
 from .models import Conversation, Message, Participant
@@ -89,8 +90,9 @@ class ConditionalFields:
         """Create an empty map of field names to conditions."""
         self._conditions = {}
 
-    def __call__(self, field_name: str, condition: Callable[[Message],
-                                                            bool]) -> None:
+    def __call__(
+            self, field_name: str,
+            condition: Callable[[Message | dict[str, Any]], bool]) -> None:
         """Add a field name and its condition.
 
         Args:
@@ -100,20 +102,33 @@ class ConditionalFields:
         """
         self._conditions[field_name] = condition
 
-    def __getitem__(self, field_name: str) -> Callable[[Message], bool]:
+    def __getitem__(
+            self,
+            field_name: str) -> Callable[[Message | dict[str, Any]], bool]:
         return self._conditions.get(field_name, lambda m: True)
 
 
-def _only_type(t: str) -> Callable[[Message], bool]:
-    return lambda m: isinstance(m, Message) and m.type == t
+def _only_type(t: str) -> Callable[[Message | dict[str, Any]], bool]:
+    return lambda m: (isinstance(m, Message) and m.type == t or isinstance(
+        m, dict) and m.get('type', None) == t)
 
 
-def _only_not_type(t: str) -> Callable[[Message], bool]:
-    return lambda m: isinstance(m, Message) and m.type != t
+def _only_not_type(t: str) -> Callable[[Message | dict[str, Any]], bool]:
+    return lambda m: (isinstance(m, Message) and m.type != t or isinstance(
+        m, dict) and m.get('type', None) != t)
 
 
 _only_system = _only_type(Message.MessageType.SYSTEM)
 _only_non_system = _only_not_type(Message.MessageType.SYSTEM)
+
+
+def _only_with_file(m: Message | dict[str, Any]) -> bool:
+    t = (m.type if isinstance(m, Message) else
+         m.get('type', None) if isinstance(m, dict) else None)
+    return t in [
+        Message.MessageType.ATTACHMENT, Message.MessageType.VOICE,
+        Message.MessageType.MEDIA
+    ]
 
 
 # noinspection PyAbstractClass
@@ -132,6 +147,7 @@ class MessageSerializer(ModelSerializer):
 
     quoted_message_id = CharField(source='quoted_message.m_id',
                                   allow_null=True,
+                                  allow_blank=True,
                                   required=False)
     conditional('quoted_message_id', _only_non_system)
 
@@ -140,6 +156,29 @@ class MessageSerializer(ModelSerializer):
 
     conditional('local_id', _only_non_system)
     conditional('text', _only_non_system)
+
+    file_url = SerializerMethodField()
+    conditional('file_url', _only_with_file)
+
+    file_size = IntegerField(read_only=True)
+    conditional('file_size', _only_with_file)
+
+    file = FileField(write_only=True, allow_null=True, required=False)
+    conditional('file', _only_with_file)
+
+    def get_file_url(self, message: Message) -> str | None:
+        """Return the URL to download the attached file.
+
+        Args:
+            message: the instance being serialised
+
+        Returns:
+            the attachment URL, or ``None``
+            if this message does not have an attached file
+        """
+        if not _only_with_file(message) or not message.file:
+            return None
+        return message.file.url
 
     def get_additional_metadata(self,
                                 message: Message) -> dict[str, Any] | None:
@@ -166,7 +205,13 @@ class MessageSerializer(ModelSerializer):
 
     @overrides
     def to_internal_value(self, data: dict[str, Any]) -> dict[str, Any]:
+        delete = [
+            f for f in data if not MessageSerializer.conditional[f](data)
+        ]
+        for f in delete:
+            data.pop(f, None)
         d = super().to_internal_value(data)
+
         quoted_message_m_id = d.pop('quoted_message', {}).get('m_id', None)
         quoted_message = None
         if quoted_message_m_id:
@@ -178,6 +223,9 @@ class MessageSerializer(ModelSerializer):
                     ['The quoted message does not exist.']
                 })
         d['quoted_message_id'] = quoted_message.id if quoted_message else None
+
+        if _only_with_file(data) and (attachment := data.get('file', None)):
+            d['file_size'] = attachment.size
 
         # these fields are filled by the controller's code
         d['conversation_id'] = data['conversation_id']
@@ -209,4 +257,8 @@ class MessageSerializer(ModelSerializer):
             'sender_id',
             'local_id',
             'text',
+            # messages with included files
+            'file',
+            'file_url',
+            'file_size',
         )

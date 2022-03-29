@@ -74,6 +74,11 @@ class Participant(models.Model):
     __str__ = __repr__
 
 
+def _attachment_name(m: 'Message', _fn: str) -> str:
+    fn = f'chat_{str(m.conversation.id)}/msg_{str(m.m_id)}_{str(m.file_key)}'
+    return 'chat/' + fn.replace('-', '')
+
+
 class Message(models.Model):
     """Represents a message in a conversation."""
 
@@ -161,7 +166,23 @@ class Message(models.Model):
     Only applicable for media and attachment messages.
     """
 
-    mime_type = models.CharField(gettext('original file name'),
+    file_key = models.UUIDField(default=uuid.uuid4, editable=False)
+    """Key required to access the file."""
+
+    file = models.FileField(gettext('attached file'),
+                            null=True,
+                            blank=True,
+                            max_length=256,
+                            upload_to=_attachment_name)
+    """Attached file.
+
+    Includes voice, media (audio/video/image) and arbitrary attachments.
+    """
+
+    file_size = models.PositiveBigIntegerField(blank=True, null=True)
+    """File size in bytes."""
+
+    mime_type = models.CharField(gettext('MIME type'),
                                  max_length=256,
                                  blank=True,
                                  null=True)

@@ -40,6 +40,8 @@ CHAT_LIMITS = {k: 0 for k in CHAT_LIMITS}
 # Disabling message attachments for now, because we haven't implemented
 # file sending yet
 
+MEDIA_ROOT = BASE_DIR / '.media'
+
 SECRET_KEY = (
     SECRET_KEY
     or 'django-insecure-ait%p*y_nubshw2pc&svhllvjpxeyss@e+i$tk+u9z70@-zy)(')

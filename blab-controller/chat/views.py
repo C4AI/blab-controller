@@ -1,10 +1,11 @@
 """Views for conversations, messages and other related entities."""
 from collections import namedtuple
 from datetime import datetime, timezone
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 from django.conf import settings
 from django.db.models import Model, QuerySet
+from django.http import QueryDict
 from django.utils.dateparse import parse_datetime
 from overrides import overrides
 from rest_framework.decorators import action
@@ -12,6 +13,7 @@ from rest_framework.exceptions import (ParseError, PermissionDenied,
                                        ValidationError)
 from rest_framework.mixins import (CreateModelMixin, ListModelMixin,
                                    RetrieveModelMixin, UpdateModelMixin)
+from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer, Serializer
@@ -157,6 +159,7 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin,
     """API endpoint that allows access to conversation messages."""
 
     serializer_class = MessageSerializer
+    parser_classes = [MultiPartParser]
 
     @overrides
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Model:
@@ -165,9 +168,13 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin,
         if not participant:
             raise PermissionDenied('You are not in this conversation.')
 
+        data: Mapping[str, Any] = request.data
+        if isinstance(data, QueryDict):
+            data = data.dict()
+
         return super().create(
             namedtuple('Request', ['data'])({
-                **request.data,
+                **data,
                 'conversation_id': conversation_id,
                 'sender_id': str(participant.id),
             }), *args, **kwargs)
