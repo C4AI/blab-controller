@@ -206,14 +206,16 @@ def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
                 pass
             else:
                 use_bots.append((bot_spec, p.id))
-    for (module_name, cls_name, args), bot_participant_id in use_bots:
+    for (module_name, cls_name, *a), bot_participant_id in use_bots:
         m = import_module(module_name)
         cls = m
         for c in cls_name.split('.'):
             cls = getattr(cls, c)
         # TODO: create a singleton per bot and reuse it
+        args = a[0] if len(a) >= 1 else []
+        kwargs = a[1] if len(a) >= 2 else {}
         # noinspection PyCallingNonCallable
-        bot_instance = cls(bot_participant_id, *args)
+        bot_instance = cls(bot_participant_id, *args, **kwargs)
         bot_instance.receive_message(instance)
 
 
