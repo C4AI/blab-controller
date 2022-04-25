@@ -224,11 +224,12 @@ def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
         cls = m
         for c in cls_name.split('.'):
             cls = getattr(cls, c)
-        # TODO: create a singleton per bot and reuse it
         args = a[0] if len(a) >= 1 else []
         kwargs = a[1] if len(a) >= 2 else {}
         # noinspection PyCallingNonCallable
-        bot_instance = cls(bot_participant_id, *args, **kwargs)
+        bot_instance = cls(
+            instance.conversation.id, bot_participant_id, *args, **kwargs
+        )
         bot_instance.receive_message(instance)
 
 

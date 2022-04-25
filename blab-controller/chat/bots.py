@@ -11,12 +11,14 @@ class Bot:
 
     my_participant_id: str
 
-    def __init__(self, my_participant_id: str):
+    def __init__(self, conversation_id: str, my_participant_id: str):
         """.
 
         Args:
+            conversation_id: conversation id
             my_participant_id: bot's participant id
         """
+        self.conversation_id = conversation_id
         self.my_participant_id = my_participant_id
 
     def receive_message(self, message: Message) -> None:
