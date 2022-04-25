@@ -73,6 +73,9 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   In *blab-controller/controller/settings/*, create a copy of the file *prod_TEMPLATE.py* and name it *prod.py*. Fill in
   the fields following the instructions on the file and the linked documentation.
 
+- **(In development environments)** <br/>
+  In *blab-controller/controller/settings/*, create a copy of the file *dev_TEMPLATE.py* and name it *dev.py*.
+
 - Let Django create the database tables:
 
   ```shell
