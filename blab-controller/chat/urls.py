@@ -35,5 +35,6 @@ urlpatterns = [
                          public=True),
          name='openapi-schema'),
     path('', include(router.urls)),
+    path('i18n/', include('django.conf.urls.i18n')),
     *paths_without_model,
 ]
