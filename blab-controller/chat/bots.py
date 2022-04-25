@@ -31,8 +31,7 @@ class Bot:
         """
         ...
 
-    def _send_message(self, conversation_id: str,
-                      message_data: dict[str, Any]) -> None:
+    def _send_message(self, conversation_id: str, message_data: dict[str, Any]) -> None:
         """Send a message from the bot.
 
         Usually this method should only be called internally.
@@ -57,8 +56,10 @@ class Bot:
         Returns:
             True if the message has been sent by a human participant
         """
-        return (message.type != Message.MessageType.SYSTEM
-                and message.sender.type == Participant.HUMAN)
+        return (
+            message.type != Message.MessageType.SYSTEM
+            and message.sender.type == Participant.HUMAN
+        )
 
 
 class UpperCaseEchoBot(Bot):
@@ -73,11 +74,13 @@ class UpperCaseEchoBot(Bot):
         else:
             result = message.text.upper()
         self._send_message(
-            message.conversation_id, {
+            message.conversation_id,
+            {
                 'type': Message.MessageType.TEXT,
                 'text': result,
-                'quoted_message_id': str(message.id)
-            })
+                'quoted_message_id': str(message.id),
+            },
+        )
 
 
 class CalculatorBot(Bot):
@@ -92,11 +95,13 @@ class CalculatorBot(Bot):
         else:
             result = self.evaluate(message.text)
         self._send_message(
-            message.conversation_id, {
+            message.conversation_id,
+            {
                 'type': Message.MessageType.TEXT,
                 'text': result,
-                'quoted_message_id': str(message.id)
-            })
+                'quoted_message_id': str(message.id),
+            },
+        )
 
     def evaluate(self, expression: str) -> str:
         """Compute the result of a simple mathematical expression.
@@ -110,13 +115,24 @@ class CalculatorBot(Bot):
         invalid_output = '?'
         try:
             import ast
+
             parsed_tree = ast.parse(expression, mode='eval')
         except SyntaxError:
             return invalid_output
         if not all(
-                isinstance(node, (ast.Expression, ast.Num, ast.UnaryOp,
-                                  ast.unaryop, ast.BinOp, ast.operator))
-                for node in ast.walk(parsed_tree)):
+            isinstance(
+                node,
+                (
+                    ast.Expression,
+                    ast.Num,
+                    ast.UnaryOp,
+                    ast.unaryop,
+                    ast.BinOp,
+                    ast.operator,
+                ),
+            )
+            for node in ast.walk(parsed_tree)
+        ):
             # it would not be safe if nodes of other types were allowed
             return invalid_output
         try:
@@ -134,4 +150,5 @@ def all_bots() -> dict[str, list[str, Any, ...]]:
         list of installed bots
     """
     from django.conf import settings
+
     return settings.INSTALLED_BOTS

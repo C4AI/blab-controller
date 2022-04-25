@@ -26,10 +26,10 @@ repos:
       - id: isort
         exclude: ^.*/migrations/.*\.py$
 
-  - repo: https://github.com/pre-commit/mirrors-yapf
-    rev: 'v0.32.0'
+  - repo: https://github.com/psf/black
+    rev: '22.3.0'
     hooks:
-      - id: yapf
+      - id: black
         additional_dependencies: [ 'toml' ]
 
   - repo: https://github.com/asottile/pyupgrade

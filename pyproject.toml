@@ -1,3 +1,11 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+skip-string-normalization = true
+force-exclude = '[^/]*/migrations/[^/]*.py'
+
 [tool.poetry]
 name = "blab-controller"
 version = "0.0.1dev"
@@ -7,6 +15,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
+Django = "^4.0.2"
 overrides = "^6.1.0"
 channels = "^3.0.4"
 channels-redis = "^3.3.1"
@@ -18,9 +27,6 @@ python-dotenv = "^0.19.2"
 PyYAML = "^6.0"
 uritemplate = "^4.1.1"
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev]
 optional = true
@@ -34,9 +40,8 @@ flake8-bugbear = "*"
 python-lsp-server = { extras = ["all"], version = "*" }
 pyupgrade = "*"
 mypy = "^0.931"
-yapf = "*"
 pre-commit = "^2.16.0"
-Django = "^4.0.2"
+black = "^22.3.0"
 
 [tool.poetry.group.PostgreSQL]
 optional = true

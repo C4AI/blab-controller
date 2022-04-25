@@ -9,10 +9,13 @@ from django.http import QueryDict
 from django.utils.dateparse import parse_datetime
 from overrides import overrides
 from rest_framework.decorators import action
-from rest_framework.exceptions import (ParseError, PermissionDenied,
-                                       ValidationError)
-from rest_framework.mixins import (CreateModelMixin, ListModelMixin,
-                                   RetrieveModelMixin, UpdateModelMixin)
+from rest_framework.exceptions import ParseError, PermissionDenied, ValidationError
+from rest_framework.mixins import (
+    CreateModelMixin,
+    ListModelMixin,
+    RetrieveModelMixin,
+    UpdateModelMixin,
+)
 from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -21,12 +24,17 @@ from rest_framework.viewsets import GenericViewSet
 
 from .bots import all_bots
 from .models import Conversation, Message, Participant
-from .serializers import (ConversationOnListSerializer, ConversationSerializer,
-                          MessageSerializer, ParticipantSerializer)
+from .serializers import (
+    ConversationOnListSerializer,
+    ConversationSerializer,
+    MessageSerializer,
+    ParticipantSerializer,
+)
 
 
-class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
-                          GenericViewSet):
+class ConversationViewSet(
+    CreateModelMixin, RetrieveModelMixin, ListModelMixin, GenericViewSet
+):
     """API endpoint that allows access to conversations."""
 
     queryset = Conversation.objects.all().order_by('name')
@@ -49,15 +57,17 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
     @overrides
     def perform_create(self, serializer: Serializer) -> None:
         nick_key = 'nickname'
-        nickname = (self.request.data.get(nick_key, None)
-                    or self.request.session.get(nick_key, None) or '')
+        nickname = (
+            self.request.data.get(nick_key, None)
+            or self.request.session.get(nick_key, None)
+            or ''
+        )
         if not isinstance(nickname, str):
             raise ValidationError('nickname must be a string')
 
         bots_key = 'bots'
         bots = self.request.data.get(bots_key, [])
-        if not isinstance(bots, list) or any(
-                b for b in bots if not isinstance(b, str)):
+        if not isinstance(bots, list) or any(b for b in bots if not isinstance(b, str)):
             raise ValidationError('Invalid bot array:' + str(bots))
         available_bots = all_bots()
         missing_bots = [b for b in bots if b not in available_bots]
@@ -72,14 +82,14 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
         )
         conversation_created_msg.save()
 
-        participant = Participant.objects.create(conversation=conversation,
-                                                 type=Participant.HUMAN,
-                                                 name=nickname)
+        participant = Participant.objects.create(
+            conversation=conversation, type=Participant.HUMAN, name=nickname
+        )
 
         self.request.session[nick_key] = nickname
-        self.request.session.setdefault('participation_in_conversation',
-                                        {})[str(conversation.id)] = str(
-                                            participant.id)
+        self.request.session.setdefault('participation_in_conversation', {})[
+            str(conversation.id)
+        ] = str(participant.id)
         self.request.session.save()
 
         if not nickname:
@@ -89,7 +99,8 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
 
         for b in bots:
             bot_participant = Participant.objects.create(
-                conversation=conversation, type=Participant.BOT, name=b)
+                conversation=conversation, type=Participant.BOT, name=b
+            )
             bot_joined_msg = Message(
                 conversation=conversation,
                 type=Message.MessageType.SYSTEM,
@@ -115,13 +126,17 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
             the HTTP response
         """
         nick_key = 'nickname'
-        nickname = (request.data.get(nick_key or None)
-                    or request.session.get(nick_key, None) or '')
+        nickname = (
+            request.data.get(nick_key or None)
+            or request.session.get(nick_key, None)
+            or ''
+        )
         if not isinstance(nickname, str):
             raise ValidationError('nickname must be a string')
         conversation_id = str(self.get_object().id)
         existing = self.request.session.setdefault(
-            'participation_in_conversation', {}).get(conversation_id, None)
+            'participation_in_conversation', {}
+        ).get(conversation_id, None)
         p = None
         if existing:
             try:
@@ -129,21 +144,22 @@ class ConversationViewSet(CreateModelMixin, RetrieveModelMixin, ListModelMixin,
             except Model.DoesNotExist:
                 pass
         if not p:
-            p = Participant.objects.create(conversation=self.get_object(),
-                                           type=Participant.HUMAN,
-                                           name=nickname)
+            p = Participant.objects.create(
+                conversation=self.get_object(), type=Participant.HUMAN, name=nickname
+            )
             p.save()
         participant_id = str(p.id)
         self.request.session['participation_in_conversation'][
-            conversation_id] = participant_id
+            conversation_id
+        ] = participant_id
         self.request.session.save()
-        cs = ConversationSerializer(self.get_object(),
-                                    context={'request': request})
+        cs = ConversationSerializer(self.get_object(), context={'request': request})
         return Response(cs.data)
 
 
-class ConversationParticipantsViewSet(ListModelMixin, UpdateModelMixin,
-                                      RetrieveModelMixin, GenericViewSet):
+class ConversationParticipantsViewSet(
+    ListModelMixin, UpdateModelMixin, RetrieveModelMixin, GenericViewSet
+):
     """API endpoint that allows access to conversation participants."""
 
     serializer_class = ParticipantSerializer
@@ -151,11 +167,11 @@ class ConversationParticipantsViewSet(ListModelMixin, UpdateModelMixin,
     @overrides
     def get_queryset(self) -> QuerySet:
         return Participant.objects.filter(
-            conversation=self.kwargs.get('conversation_id'))
+            conversation=self.kwargs.get('conversation_id')
+        )
 
 
-class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin,
-                                  GenericViewSet):
+class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewSet):
     """API endpoint that allows access to conversation messages."""
 
     serializer_class = MessageSerializer
@@ -173,16 +189,22 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin,
             data = data.dict()
 
         return super().create(
-            namedtuple('Request', ['data'])({
-                **data,
-                'conversation_id': conversation_id,
-                'sender_id': str(participant.id),
-            }), *args, **kwargs)
+            namedtuple('Request', ['data'])(
+                {
+                    **data,
+                    'conversation_id': conversation_id,
+                    'sender_id': str(participant.id),
+                }
+            ),
+            *args,
+            **kwargs,
+        )
 
     def _get_participant(self) -> Participant | None:
         conversation_id = str(self.kwargs['conversation_id'])
         existing = self.request.session.setdefault(
-            'participation_in_conversation', {}).get(conversation_id, None)
+            'participation_in_conversation', {}
+        ).get(conversation_id, None)
         if existing:
             try:
                 return Participant.objects.get(pk=existing)
@@ -222,7 +244,7 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin,
         q = q.order_by('-time')
         if (limit_str := self.request.query_params.get('limit')) is not None:
             if limit_str.isdigit():
-                q = q[:int(limit_str)]
+                q = q[: int(limit_str)]
             else:
                 raise ParseError('Invalid limit: ' + limit_str)
         return list(reversed(q))
@@ -230,7 +252,6 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin,
 
 # noinspection PyAbstractClass
 class _Identity(BaseSerializer):
-
     @overrides
     def to_representation(self, instance: str) -> str:
         return instance
@@ -251,6 +272,5 @@ class LimitsViewSet(RetrieveModelMixin, GenericViewSet):
 
     # noinspection PyUnusedLocal
     @overrides
-    def retrieve(self, request: Request, *args: Any,
-                 **kwargs: Any) -> Response:
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         return Response(settings.CHAT_LIMITS)

@@ -20,11 +20,14 @@ asgi_app = get_asgi_application()
 
 if asgi_app:  # we cannot import before get_asgi_application()
     import chat.routing
-    application = ProtocolTypeRouter({
-        'http':
-        asgi_app,
-        'websocket':
-        AuthMiddlewareStack(URLRouter(chat.routing.websockets_urlpatterns))
-    })
+
+    application = ProtocolTypeRouter(
+        {
+            'http': asgi_app,
+            'websocket': AuthMiddlewareStack(
+                URLRouter(chat.routing.websockets_urlpatterns)
+            ),
+        }
+    )
 else:
     application = None

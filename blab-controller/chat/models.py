@@ -17,10 +17,9 @@ class Conversation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     "Conversation ID (32 characters)"
 
-    name = models.CharField(pgettext('conversation name', 'name'),
-                            max_length=50,
-                            blank=True,
-                            null=True)
+    name = models.CharField(
+        pgettext('conversation name', 'name'), max_length=50, blank=True, null=True
+    )
     """Conversation name"""
 
     created_at = models.DateTimeField(gettext('time'), auto_now_add=True)
@@ -57,11 +56,12 @@ class Participant(models.Model):
     )
     """Participant type (human, bot)"""
 
-    conversation = models.ForeignKey(Conversation,
-                                     on_delete=models.PROTECT,
-                                     verbose_name=pgettext(
-                                         'conversation', 'participants'),
-                                     related_name='participants')
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.PROTECT,
+        verbose_name=pgettext('conversation', 'participants'),
+        related_name='participants',
+    )
 
     class Meta:
         verbose_name = gettext('participant')
@@ -82,10 +82,9 @@ def _attachment_name(m: 'Message', _fn: str) -> str:
 class Message(models.Model):
     """Represents a message in a conversation."""
 
-    m_id = models.UUIDField(unique=True,
-                            default=uuid.uuid4,
-                            editable=False,
-                            db_index=True)
+    m_id = models.UUIDField(
+        unique=True, default=uuid.uuid4, editable=False, db_index=True
+    )
     """Message ID (32 characters)
 
     A numerical ID is still used internally as a primary key,
@@ -105,27 +104,33 @@ class Message(models.Model):
     )
     """The message type"""
 
-    conversation = models.ForeignKey(Conversation,
-                                     related_name='messages',
-                                     on_delete=models.CASCADE,
-                                     verbose_name=gettext('message'))
+    conversation = models.ForeignKey(
+        Conversation,
+        related_name='messages',
+        on_delete=models.CASCADE,
+        verbose_name=gettext('message'),
+    )
     """The conversation to which the message belongs"""
 
     time = models.DateTimeField(gettext('time'), auto_now_add=True)
     """When the message was sent or the event occurred"""
 
-    quoted_message = models.ForeignKey('self',
-                                       null=True,
-                                       blank=True,
-                                       on_delete=models.SET_NULL,
-                                       verbose_name=gettext('quoted message'))
+    quoted_message = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        verbose_name=gettext('quoted message'),
+    )
     """The message quoted by this message, if any"""
 
-    sender = models.ForeignKey(Participant,
-                               on_delete=models.PROTECT,
-                               null=True,
-                               blank=True,
-                               verbose_name=gettext('sender'))
+    sender = models.ForeignKey(
+        Participant,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name=gettext('sender'),
+    )
     """Who sent the message
 
     This field is NULL if and only if the message is a system message.
@@ -149,18 +154,17 @@ class Message(models.Model):
     For system messages, this field stores a string indicating the event type.
     """
 
-    additional_metadata = models.JSONField(gettext('additional metadata'),
-                                           default=dict,
-                                           blank=True)
+    additional_metadata = models.JSONField(
+        gettext('additional metadata'), default=dict, blank=True
+    )
     """Additional metadata about the message.
 
     System messages can use this field to store information about the event.
     """
 
-    original_file_name = models.CharField(gettext('original file name'),
-                                          max_length=100,
-                                          blank=True,
-                                          null=True)
+    original_file_name = models.CharField(
+        gettext('original file name'), max_length=100, blank=True, null=True
+    )
     """Original name of the file attached to the message.
 
     Only applicable for media and attachment messages.
@@ -169,11 +173,13 @@ class Message(models.Model):
     file_key = models.UUIDField(default=uuid.uuid4, editable=False)
     """Key required to access the file."""
 
-    file = models.FileField(gettext('attached file'),
-                            null=True,
-                            blank=True,
-                            max_length=256,
-                            upload_to=_attachment_name)
+    file = models.FileField(
+        gettext('attached file'),
+        null=True,
+        blank=True,
+        max_length=256,
+        upload_to=_attachment_name,
+    )
     """Attached file.
 
     Includes voice, media (audio/video/image) and arbitrary attachments.
@@ -182,19 +188,17 @@ class Message(models.Model):
     file_size = models.PositiveBigIntegerField(blank=True, null=True)
     """File size in bytes."""
 
-    mime_type = models.CharField(gettext('MIME type'),
-                                 max_length=256,
-                                 blank=True,
-                                 null=True)
+    mime_type = models.CharField(
+        gettext('MIME type'), max_length=256, blank=True, null=True
+    )
     """MIME type of the file attached to the message.
 
     Only applicable for media, voice and attachment messages.
     """
 
-    local_id = models.CharField(gettext('local message id'),
-                                blank=True,
-                                null=True,
-                                max_length=32)
+    local_id = models.CharField(
+        gettext('local message id'), blank=True, null=True, max_length=32
+    )
     """Local message id, defined by the sender.
 
     Subsequent attempts to send a message with the same local id from the
@@ -208,8 +212,7 @@ class Message(models.Model):
         super().clean()
         # hasattr check is necessary, otherwise Django throws an exception
         # if the member does not exist
-        sender = getattr(self, 'sender', None) if hasattr(self,
-                                                          'sender') else None
+        sender = getattr(self, 'sender', None) if hasattr(self, 'sender') else None
         if self.type == Message.MessageType.SYSTEM:
             if sender:
                 raise ValidationError('system message must not have a sender')
@@ -217,8 +220,7 @@ class Message(models.Model):
             if not sender:
                 raise ValidationError('non-system message must have a sender')
             if sender not in self.conversation.participants.all():
-                raise ValidationError(
-                    'sender is a participant in the conversation')
+                raise ValidationError('sender is a participant in the conversation')
 
     @overrides
     def save(self, *args: Any, **kwargs: Any) -> Any:
@@ -230,6 +232,6 @@ class Message(models.Model):
         verbose_name_plural = gettext('messages')
         constraints = [
             models.UniqueConstraint(
-                fields=['conversation', 'sender', 'local_id'],
-                name='local_id_unique')
+                fields=['conversation', 'sender', 'local_id'], name='local_id_unique'
+            )
         ]
