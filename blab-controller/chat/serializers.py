@@ -149,7 +149,9 @@ def _only_with_file(m: Message | dict[str, Any]) -> bool:
     return t in [
         Message.MessageType.ATTACHMENT,
         Message.MessageType.VOICE,
-        Message.MessageType.MEDIA,
+        Message.MessageType.AUDIO,
+        Message.MessageType.VIDEO,
+        Message.MessageType.IMAGE,
     ]
 
 
