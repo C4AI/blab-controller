@@ -1,4 +1,4 @@
-"""Template for settings used in a production environment.
+"""Template for settings used in a development environment.
 
 Create a copy of this file and name it "dev.py".
 """

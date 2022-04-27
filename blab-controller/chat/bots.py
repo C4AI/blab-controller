@@ -3,7 +3,7 @@ from typing import Any, Callable, Protocol
 
 from overrides import overrides
 
-from .models import Message, Participant
+from .models import Message
 
 
 class ConversationInfo(Protocol):
@@ -39,28 +39,13 @@ class Bot:
         """
         ...
 
-    @classmethod
-    def _from_human(cls, message: Message) -> bool:
-        """Check if the sender of a message is human.
-
-        Args:
-            message: the message sent by the desired sender
-
-        Returns:
-            True if the message has been sent by a human participant
-        """
-        return (
-            message.type != Message.MessageType.SYSTEM
-            and message.sender.type == Participant.HUMAN
-        )
-
 
 class UpperCaseEchoBot(Bot):
     """Bot example - echoes text messages in upper-case letters."""
 
     @overrides
     def receive_message(self, message: Message) -> None:
-        if not Bot._from_human(message):
+        if not message.sent_by_human():
             return
         if message.type != Message.MessageType.TEXT:
             result = '?'
@@ -80,7 +65,7 @@ class CalculatorBot(Bot):
 
     @overrides
     def receive_message(self, message: Message) -> None:
-        if not Bot._from_human(message):
+        if not message.sent_by_human():
             return
         if message.type != Message.MessageType.TEXT:
             result = '?'
