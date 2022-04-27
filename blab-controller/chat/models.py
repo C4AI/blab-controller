@@ -168,10 +168,15 @@ class Message(models.Model):
     """Original name of the file attached to the message.
 
     Only applicable for media and attachment messages.
+
+    It may not be set for files that are hosted externally.
     """
 
     file_key = models.UUIDField(default=uuid.uuid4, editable=False)
-    """Key required to access the file."""
+    """Key required to access the file.
+
+    It is not set for files that are hosted externally.
+    """
 
     file = models.FileField(
         gettext('attached file'),
@@ -183,10 +188,15 @@ class Message(models.Model):
     """Attached file.
 
     Includes voice, media (audio/video/image) and arbitrary attachments.
+
+    It is not set for files that are hosted externally.
     """
 
     file_size = models.PositiveBigIntegerField(blank=True, null=True)
-    """File size in bytes."""
+    """File size in bytes.
+
+    It may not be set for files that are hosted externally.
+    """
 
     mime_type = models.CharField(
         gettext('MIME type'), max_length=256, blank=True, null=True
@@ -194,6 +204,16 @@ class Message(models.Model):
     """MIME type of the file attached to the message.
 
     Only applicable for media, voice and attachment messages.
+    """
+
+    external_file_url = models.URLField(
+        gettext('external file URL'), max_length=1000, blank=True
+    )
+    """External URL of the attached file.
+
+    Includes voice, media (audio/video/image) and arbitrary attachments.
+
+    It is only set for files that are hosted externally.
     """
 
     local_id = models.CharField(
@@ -226,6 +246,17 @@ class Message(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> Any:
         self.full_clean()
         super().save(*args, **kwargs)
+
+    def sent_by_human(self) -> bool:
+        """Check if this message was sent by a person.
+
+        Returns:
+            `True` if and only if the message was sent by a human user
+        """
+        return (
+            self.type != Message.MessageType.SYSTEM
+            and self.sender.type == Participant.HUMAN
+        )
 
     class Meta:
         verbose_name = gettext('message')

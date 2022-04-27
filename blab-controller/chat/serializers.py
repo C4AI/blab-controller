@@ -197,9 +197,11 @@ class MessageSerializer(ModelSerializer):
             the attachment URL, or ``None``
             if this message does not have an attached file
         """
-        if not _only_with_file(message) or not message.file:
+        if not _only_with_file(message):
             return None
-        return message.file.url
+        if message.file:
+            return message.file.url
+        return message.external_file_url or None
 
     def get_additional_metadata(self, message: Message) -> dict[str, Any] | None:
         """Return additional metadata (only for system messages).
@@ -240,8 +242,11 @@ class MessageSerializer(ModelSerializer):
                 )
         d['quoted_message_id'] = quoted_message.id if quoted_message else None
 
-        if _only_with_file(data) and (attachment := data.get('file', None)):
-            d['file_size'] = attachment.size
+        if _only_with_file(data):
+            if attachment := data.get('file', None):
+                d['file_size'] = attachment.size
+            if external_url := data.get('external_file_url', None):
+                d['external_file_url'] = external_url
 
         # these fields are filled by the controller's code
         d['conversation_id'] = data['conversation_id']
