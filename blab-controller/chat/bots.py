@@ -1,9 +1,17 @@
 """Contains a basic class that implements a chat bot."""
-from typing import Any
+from typing import Any, Callable, Protocol
 
 from overrides import overrides
 
 from .models import Message, Participant
+
+
+class ConversationInfo(Protocol):
+    """Conversation interface available to bots."""
+
+    conversation_id: str
+    my_participant_id: str
+    send_function: Callable[[dict[str, Any]], Message]
 
 
 class Bot:
@@ -11,15 +19,13 @@ class Bot:
 
     my_participant_id: str
 
-    def __init__(self, conversation_id: str, my_participant_id: str):
+    def __init__(self, conversation_info: ConversationInfo):
         """.
 
         Args:
-            conversation_id: conversation id
-            my_participant_id: bot's participant id
+            conversation_info: conversation data
         """
-        self.conversation_id = conversation_id
-        self.my_participant_id = my_participant_id
+        self.conversation_info = conversation_info
 
     def receive_message(self, message: Message) -> None:
         """Receive a message.
@@ -32,21 +38,6 @@ class Bot:
             message: the received message
         """
         ...
-
-    def _send_message(self, conversation_id: str, message_data: dict[str, Any]) -> None:
-        """Send a message from the bot.
-
-        Usually this method should only be called internally.
-
-        Args:
-            conversation_id: id of the conversation
-            message_data: message data (type, text, etc.)
-        """
-        Message.objects.create(
-            **message_data,
-            conversation_id=conversation_id,
-            sender_id=self.my_participant_id,
-        )
 
     @classmethod
     def _from_human(cls, message: Message) -> bool:
@@ -75,12 +66,11 @@ class UpperCaseEchoBot(Bot):
             result = '?'
         else:
             result = message.text.upper()
-        self._send_message(
-            message.conversation_id,
+        self.conversation_info.send_function(
             {
                 'type': Message.MessageType.TEXT,
                 'text': result,
-                'quoted_message_id': str(message.id),
+                'quoted_message_id': str(message.m_id),
             },
         )
 
@@ -96,15 +86,15 @@ class CalculatorBot(Bot):
             result = '?'
         else:
             result = self.evaluate(message.text)
-        self._send_message(
-            message.conversation_id,
+        self.conversation_info.send_function(
             {
                 'type': Message.MessageType.TEXT,
                 'text': result,
-                'quoted_message_id': str(message.id),
+                'quoted_message_id': str(message.m_id),
             },
         )
 
+    # noinspection PyMethodMayBeStatic
     def evaluate(self, expression: str) -> str:
         """Compute the result of a simple mathematical expression.
 

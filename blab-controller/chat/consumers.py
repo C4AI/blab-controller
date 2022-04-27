@@ -1,7 +1,7 @@
 """Contains Websocket consumers."""
 import json
 from importlib import import_module
-from typing import Any, cast
+from typing import Any, Callable, NamedTuple, cast
 
 from asgiref.sync import async_to_sync, sync_to_async
 from channels.db import database_sync_to_async
@@ -154,8 +154,9 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 }
             )
 
+    @classmethod
     @database_sync_to_async
-    def create_message(self, message_data: dict[str, Any]) -> Message | None:
+    def create_message(cls, message_data: dict[str, Any]) -> Message | None:
         """Create a message and save it to the database.
 
         Args:
@@ -201,6 +202,14 @@ def _participant_watcher(sender: Any, instance: Participant, **kwargs: Any) -> N
     )
 
 
+class ConversationInfo(NamedTuple):
+    """Contains basic conversation information available to bots."""
+
+    conversation_id: str
+    bot_participant_id: str
+    send_function: Callable[[dict[str, Any]], Message]
+
+
 # noinspection PyUnusedLocal
 @receiver([post_save], sender=Message, dispatch_uid='consumer_message_watcher')
 def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
@@ -226,10 +235,19 @@ def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
             cls = getattr(cls, c)
         args = a[0] if len(a) >= 1 else []
         kwargs = a[1] if len(a) >= 2 else {}
+
+        def send(message_data: dict[str, Any]) -> Message:
+            return async_to_sync(ConversationConsumer.create_message)(
+                dict(
+                    **message_data,
+                    conversation_id=instance.conversation.id,
+                    sender_id=bot_participant_id,
+                )
+            )
+
+        conv_info = ConversationInfo(instance.conversation.id, bot_participant_id, send)
         # noinspection PyCallingNonCallable
-        bot_instance = cls(
-            instance.conversation.id, bot_participant_id, *args, **kwargs
-        )
+        bot_instance = cls(conv_info, *args, **kwargs)
         bot_instance.receive_message(instance)
 
 
