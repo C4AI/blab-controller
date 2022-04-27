@@ -186,6 +186,9 @@ class MessageSerializer(ModelSerializer):
     file_size = IntegerField(read_only=True)
     conditional('file_size', _only_with_file)
 
+    file_name = SerializerMethodField()
+    conditional('file_name', _only_with_file)
+
     file = FileField(write_only=True, allow_null=True, required=False)
     conditional('file', _only_with_file)
 
@@ -204,6 +207,24 @@ class MessageSerializer(ModelSerializer):
         if message.file:
             return message.file.url
         return message.external_file_url or None
+
+    def get_file_name(self, message: Message) -> str | None:
+        """Return the original name of the attached file.
+
+        Args:
+            message: the instance being serialised
+
+        Returns:
+            the attachment name, or ``None``
+            if this message does not have an attached file
+        """
+        if not _only_with_file(message):
+            return None
+        if message.file:
+            return message.original_file_name
+        if message.external_file_url:
+            return message.external_file_url.rsplit('?', 1)[0].rsplit('/', 1)[-1]
+        return None
 
     def get_additional_metadata(self, message: Message) -> dict[str, Any] | None:
         """Return additional metadata (only for system messages).
@@ -247,6 +268,8 @@ class MessageSerializer(ModelSerializer):
         if _only_with_file(data):
             if attachment := data.get('file', None):
                 d['file_size'] = attachment.size
+                d['mime_type'] = attachment.content_type
+                d['original_file_name'] = attachment.name
             if external_url := data.get('external_file_url', None):
                 d['external_file_url'] = external_url
 
@@ -282,4 +305,5 @@ class MessageSerializer(ModelSerializer):
             'file',
             'file_url',
             'file_size',
+            'file_name',
         )
