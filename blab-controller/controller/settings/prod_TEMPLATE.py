@@ -189,10 +189,12 @@ https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Secur
 """
 
 ##########################################################################
-# IT IS NOT NECESSARY TO EDIT THE REMAINING CONTENTS OF THIS FILE
+# IT IS NOT NECESSARY TO EDIT THE CONTENTS BELOW
 ##########################################################################
 
 DEBUG = False
+
+CORS_ALLOW_CREDENTIALS = True
 
 if _ssl:
     SECURE_SSL_REDIRECT = True
