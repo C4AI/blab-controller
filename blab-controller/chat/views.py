@@ -16,7 +16,7 @@ from rest_framework.mixins import (
     RetrieveModelMixin,
     UpdateModelMixin,
 )
-from rest_framework.parsers import MultiPartParser
+from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer, Serializer
@@ -175,7 +175,7 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewS
     """API endpoint that allows access to conversation messages."""
 
     serializer_class = MessageSerializer
-    parser_classes = [MultiPartParser]
+    parser_classes = [MultiPartParser, JSONParser]
 
     @overrides
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Model:
@@ -208,7 +208,7 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewS
         if existing:
             try:
                 return Participant.objects.get(pk=existing)
-            except Model.DoesNotExist:
+            except Participant.DoesNotExist:
                 return None
         return None
 
