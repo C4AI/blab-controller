@@ -53,25 +53,8 @@ CHAT_LIMITS = {
     'MAX_AUDIO_SIZE': 15 * 2 ** 20,
     # maximum size of an audio file (in bytes)
 
-    'MAX_VOICE_SIZE': 30 * 60,
+    'MAX_VOICE_SIZE': 15 * 2 ** 20,
     # maximum size of any voice recording file (in bytes)
-
-    'MAX_IMAGE_RESOLUTION': 1280,
-    # maximum width and height of any image (in pixels)
-    # (clients may optionally downscale images before the upload)
-
-    'MAX_VIDEO_RESOLUTION': 1280,
-    # maximum width and height of any video (in pixels)
-
-    'MAX_VIDEO_LENGTH': 10 * 60,
-    # maximum length of any video (in seconds)
-
-    'MAX_AUDIO_LENGTH': 30 * 60,
-    # maximum length of any audio file (in seconds)
-
-    'MAX_VOICE_LENGTH': 30 * 60,
-    # maximum length of any voice recording file (in seconds)
-
 }
 
 CHAT_LIMITS = {k: 0 for k in CHAT_LIMITS}
