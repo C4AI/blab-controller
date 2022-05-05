@@ -22,6 +22,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer, Serializer
 from rest_framework.viewsets import GenericViewSet
 
+from . import blab_logger as logger
 from .bots import all_bots
 from .models import Conversation, Message, Participant
 from .serializers import (
@@ -55,7 +56,9 @@ class ConversationViewSet(
         return super().list(request, *args, **kwargs)
 
     @overrides
-    def perform_create(self, serializer: Serializer) -> None:
+    def perform_create(self, serializer: Serializer, **kwargs: Any) -> None:
+        log = logger
+        log.info('trying to create conversation')
         nick_key = 'nickname'
         nickname = (
             self.request.data.get(nick_key, None)
@@ -81,10 +84,12 @@ class ConversationViewSet(
             text=Message.SystemEvent.CREATED,
         )
         conversation_created_msg.save()
+        log = log.bind(conversation_id=str(conversation.id))
 
         participant = Participant.objects.create(
             conversation=conversation, type=Participant.HUMAN, name=nickname
         )
+        log = log.bind(conversation_id=str(participant.id))
 
         self.request.session[nick_key] = nickname
         self.request.session.setdefault('participation_in_conversation', {})[
@@ -96,10 +101,15 @@ class ConversationViewSet(
             nickname = 'ANON_' + str(participant.id)
             participant.name = nickname
         participant.save()
+        log = log.bind(participant_name=participant.name)
+        log.info('conversation created')
 
         for b in bots:
             bot_participant = Participant.objects.create(
                 conversation=conversation, type=Participant.BOT, name=b
+            )
+            log.info(
+                'bot joined conversation', bot_participant_id=str(bot_participant.id)
             )
             bot_joined_msg = Message(
                 conversation=conversation,
@@ -125,6 +135,9 @@ class ConversationViewSet(
         Returns:
             the HTTP response
         """
+        conversation_id = str(self.get_object().id)
+        log = logger.bind(conversation_id=conversation_id)
+        log.info('trying to join conversation')
         nick_key = 'nickname'
         nickname = (
             request.data.get(nick_key or None)
@@ -133,7 +146,6 @@ class ConversationViewSet(
         )
         if not isinstance(nickname, str):
             raise ValidationError('nickname must be a string')
-        conversation_id = str(self.get_object().id)
         existing = self.request.session.setdefault(
             'participation_in_conversation', {}
         ).get(conversation_id, None)
@@ -149,6 +161,8 @@ class ConversationViewSet(
             )
             p.save()
         participant_id = str(p.id)
+        log = log.bind(participant_id=participant_id)
+        log.info('joined conversation')
         self.request.session['participation_in_conversation'][
             conversation_id
         ] = participant_id
@@ -180,6 +194,8 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewS
     @overrides
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Model:
         conversation_id = str(self.kwargs['conversation_id'])
+        log = logger.bind(conversation_id=conversation_id)
+        log.info('trying to register sent message')
         participant = self._get_participant()
         if not participant:
             raise PermissionDenied('You are not in this conversation.')
