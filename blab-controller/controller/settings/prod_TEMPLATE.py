@@ -8,7 +8,6 @@ A short description is given below each field.
 Documentation:
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
-# yapf: disable
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -26,7 +25,6 @@ INSTALLED_APPS += [
 INSTALLED_BOTS = {
     'ECHO': ('chat.bots', 'UpperCaseEchoBot', []),
     'Calculator': ('chat.bots', 'CalculatorBot', []),
-
 }
 """Installed bots.
 
@@ -43,17 +41,13 @@ Each key is the bot name, and the value is a 3-tuple
 CHAT_LIMITS = {
     'MAX_ATTACHMENT_SIZE': 15 * 2**20,
     # maximum size of an attachment (in bytes)
-
-    'MAX_IMAGE_SIZE': 15 * 2 ** 20,
+    'MAX_IMAGE_SIZE': 15 * 2**20,
     # maximum size of an image (in bytes)
-
-    'MAX_VIDEO_SIZE': 15 * 2 ** 20,
+    'MAX_VIDEO_SIZE': 15 * 2**20,
     # maximum size of an image (in bytes)
-
-    'MAX_AUDIO_SIZE': 15 * 2 ** 20,
+    'MAX_AUDIO_SIZE': 15 * 2**20,
     # maximum size of an audio file (in bytes)
-
-    'MAX_VOICE_SIZE': 15 * 2 ** 20,
+    'MAX_VOICE_SIZE': 15 * 2**20,
     # maximum size of any voice recording file (in bytes)
 }
 
@@ -69,7 +63,7 @@ MEDIA_ROOT = BASE_DIR / '.media'
 ##########################################################################
 
 ALLOWED_HOSTS = [
-    'localhost',           # local connections should be allowed
+    'localhost',  # local connections should be allowed
     # 'example.com',       # domain
     # 'www.example.com',   # subdomain
     # '.example.com',      # all subdomains
@@ -186,5 +180,4 @@ if _ssl:
     SECURE_BROWSER_XSS_FILTER = True
 
 if not SECRET_KEY:
-    raise ImproperlyConfigured(
-        'Environment variable SECRET_KEY not set or empty')
+    raise ImproperlyConfigured('Environment variable SECRET_KEY not set or empty')

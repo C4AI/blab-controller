@@ -11,8 +11,8 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   repositories, [this short script](https://gist.github.com/viniciusbm/f603d2d8165b08321be0728e5e51e8d8) can be used to
   compile and install it from source.
 
-- Install `python3-venv` or the equivalent package for the Linux distribution you are using. It may correspond to a
-  different Python version.
+- Install `python3-venv`, `python3-pip` and `python3-dev`, or the equivalent packages for your Linux distribution.
+  It is possible that `python3-venv` corresponds to a different Python version.
 
 - Install `redis-server`, which will be used to handle the WebSocket connections.
 
@@ -82,11 +82,24 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   poetry run ./blab-controller/manage.py migrate
   ```
 
+- The admin interface will be in English. In order to enable the display of texts in other languages
+  (currently, English and Brazilian Portuguese are supported), install gettext (e.g. on Debian and derivatives,
+  `apt install gettext` as root), then run:
+
+    ```shell
+    poetry run ./blab-controller/manage.py compilemessages
+    ```
+
 - **(In development environments)** <br/>
   To start the development server, run:
 
   ```shell
   poetry run ./blab-controller/manage.py runserver
+  ```
+
+- **(In production environments)** <br/> Generate the static files:
+  ```shell
+  poetry run ./blab-controller/manage.py collectstatic
   ```
 
   Open http://localhost:8000/api/chat/ to see the REST API (append `/_docs/` to see the OpenAPI description).
@@ -202,4 +215,38 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
 
     At this point, the installation should be ready.
 
+    #### Upgrade instructions
+
+    - Get the latest version from the repository (`git pull`, or download the .zip file from GitHub).
+    - Install and update dependencies:
+
+      ```shell
+      POETRY_VIRTUALENVS_IN_PROJECT=true poetry install
+      ```
+    - Let Django update the database tables:
+
+      ```shell
+      poetry run ./blab-controller/manage.py migrate
+      ```
+      Generate the static files:
+
+      ```shell
+      poetry run ./blab-c
+
+
+      ontroller/manage.py collectstatic
+      ```
+
+    - Restart Gunicorn:
+
+      ```shell
+      systemctl restart blab-gunicorn
+      ```
+
   </details>
+
+- Create a super-user to access the admin interface:
+
+    ```shell
+    poetry run ./blab-controller/manage.py createsuperuser
+    ```
