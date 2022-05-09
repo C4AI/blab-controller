@@ -8,6 +8,7 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from overrides import overrides
@@ -213,6 +214,14 @@ class ConversationInfo(NamedTuple):
 # noinspection PyUnusedLocal
 @receiver([post_save], sender=Message, dispatch_uid='consumer_message_watcher')
 def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
+    if not transaction.get_connection().in_atomic_block:
+        _watcher_for_bots(instance)
+    else:
+        transaction.on_commit(lambda: _watcher_for_bots(instance))
+
+
+def _watcher_for_bots(instance: Message) -> None:
+
     async_to_sync(ConversationConsumer.broadcast_message)(
         instance.conversation.id, instance
     )

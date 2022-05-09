@@ -279,3 +279,24 @@ class Message(models.Model):
                 fields=['conversation', 'sender', 'local_id'], name='local_id_unique'
             )
         ]
+
+
+class MessageOption(models.Model):
+    """Represents one of the options given to the user."""
+
+    option_text = models.CharField(gettext('option text'), max_length=4000, blank=True)
+    """Text of the option"""
+
+    position = models.PositiveSmallIntegerField(gettext('option position'))
+    """Option position"""
+
+    message = models.ForeignKey(
+        Message,
+        related_name='options',
+        on_delete=models.CASCADE,
+        verbose_name=gettext('message'),
+    )
+    """The message to which the option belongs"""
+
+    class Meta:
+        ordering = ['position']

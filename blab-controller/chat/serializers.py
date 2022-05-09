@@ -1,6 +1,7 @@
 """Contains serialising routines."""
 from typing import Any, Callable, cast
 
+from django.db import transaction
 from django.db.models import Model
 from overrides import overrides
 from rest_framework.exceptions import ValidationError
@@ -12,7 +13,7 @@ from rest_framework.fields import (
 )
 from rest_framework.serializers import ModelSerializer
 
-from .models import Conversation, Message, Participant
+from .models import Conversation, Message, MessageOption, Participant
 
 
 class ConversationOnListSerializer(ModelSerializer):
@@ -138,6 +139,15 @@ _only_system = _only_type(Message.MessageType.SYSTEM)
 _only_non_system = _only_not_type(Message.MessageType.SYSTEM)
 
 
+def _only_with_options(m: Message | dict[str, Any]) -> bool:
+    return (
+        isinstance(m, Message)
+        and m.options
+        or isinstance(m, dict)
+        and bool(m.get('options', []))
+    )
+
+
 def _only_with_file(m: Message | dict[str, Any]) -> bool:
     t = (
         m.type
@@ -153,6 +163,20 @@ def _only_with_file(m: Message | dict[str, Any]) -> bool:
         Message.MessageType.VIDEO,
         Message.MessageType.IMAGE,
     ]
+
+
+class MessageOptionSerializer(ModelSerializer):
+    """Serialises message options."""
+
+    @overrides
+    def to_internal_value(self, data: str | dict[str, Any]) -> dict[str, Any]:
+        if isinstance(data, str):
+            return {'option_text': data, 'position': 0}
+        return data
+
+    class Meta:
+        model = MessageOption
+        fields = ('option_text', 'position')
 
 
 # noinspection PyAbstractClass
@@ -191,6 +215,9 @@ class MessageSerializer(ModelSerializer):
 
     file = FileField(write_only=True, allow_null=True, required=False)
     conditional('file', _only_with_file)
+
+    options = MessageOptionSerializer(many=True, required=False)
+    conditional('options', _only_with_options)
 
     def get_file_url(self, message: Message) -> str | None:
         """Return the URL to download the attached file.
@@ -245,7 +272,13 @@ class MessageSerializer(ModelSerializer):
         message_type = validated_data.get('type', None)
         if message_type == Message.MessageType.SYSTEM:
             raise ValidationError({'type': ['You cannot create system messages.']})
-        return Message.objects.create(**validated_data)
+        options = validated_data.pop('options', None) or []
+        with transaction.atomic():
+            message = Message.objects.create(**validated_data)
+            for option in options:
+                MessageOption.objects.create(message=message, **option)
+            message.refresh_from_db()
+        return message
 
     @overrides
     def to_internal_value(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -276,6 +309,9 @@ class MessageSerializer(ModelSerializer):
         # these fields are filled by the controller's code
         d['conversation_id'] = data['conversation_id']
         d['sender_id'] = data['sender_id']
+        d['options'] = []
+        for i, o in enumerate(data.get('options', None) or []):
+            d['options'].append(dict(option_text=str(o), position=i + 1))
         return d
 
     @overrides
@@ -284,6 +320,8 @@ class MessageSerializer(ModelSerializer):
         delete = [f for f in result if not MessageSerializer.conditional[f](instance)]
         for f in delete:
             result.pop(f, None)
+        if 'options' in result:
+            result['options'] = list(map(lambda o: o['option_text'], result['options']))
         return result
 
     class Meta:
@@ -306,4 +344,6 @@ class MessageSerializer(ModelSerializer):
             'file_url',
             'file_size',
             'file_name',
+            # options
+            'options',
         )
