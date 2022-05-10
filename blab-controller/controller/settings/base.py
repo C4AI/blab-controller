@@ -109,6 +109,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / '.static'
+
 ASGI_APPLICATION = 'controller.routing.application'
 
 # Media files (uploaded by users)
