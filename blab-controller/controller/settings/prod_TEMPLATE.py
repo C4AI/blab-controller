@@ -64,6 +64,7 @@ MEDIA_ROOT = BASE_DIR / '.media'
 
 ALLOWED_HOSTS = [
     'localhost',  # local connections should be allowed
+    '127.0.0.1',  # local connections should be allowed
     # 'example.com',       # domain
     # 'www.example.com',   # subdomain
     # '.example.com',      # all subdomains
