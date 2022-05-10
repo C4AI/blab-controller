@@ -165,11 +165,15 @@ LOGGING = {
         },
     },
     'loggers': {
+        'django': {
+            'handlers': ['flat_line_file', 'json_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
         'django_structlog': {
-            'handlers': ['console', 'flat_line_file', 'json_file'],
+            'handlers': ['flat_line_file', 'json_file'],
             'level': 'INFO',
         },
-        # Make sure to replace the following logger's name for yours
         'blab_controller': {
             'handlers': ['console', 'flat_line_file', 'json_file'],
             'level': 'INFO',
