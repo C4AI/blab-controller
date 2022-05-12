@@ -1,4 +1,5 @@
 """Contains a basic class that implements a chat bot."""
+from time import sleep
 from typing import Any, Callable, Protocol
 
 from overrides import overrides
@@ -51,6 +52,7 @@ class UpperCaseEchoBot(Bot):
             result = '?'
         else:
             result = message.text.upper()
+        sleep(1)
         self.conversation_info.send_function(
             {
                 'type': Message.MessageType.TEXT,
@@ -71,6 +73,7 @@ class CalculatorBot(Bot):
             result = '?'
         else:
             result = self.evaluate(message.text)
+        sleep(1)
         self.conversation_info.send_function(
             {
                 'type': Message.MessageType.TEXT,
