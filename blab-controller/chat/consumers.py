@@ -1,19 +1,13 @@
 """Contains Websocket consumers."""
 import json
-from importlib import import_module
-from typing import Any, Callable, NamedTuple, cast
+from typing import Any
 
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
-from django.core.exceptions import ValidationError
-from django.db import transaction
-from django.db.models.signals import post_delete, post_save
-from django.dispatch import receiver
 from overrides import overrides
 
-from .bots import all_bots
 from .models import Conversation, Message, Participant
 from .serializers import MessageSerializer, ParticipantSerializer
 
@@ -170,94 +164,8 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             the new instance of :cls:`Message` if it was saved successfully,
             or ``None`` if it was not saved because it is duplicate (same
             ``local_id`` and sender as an existing message).
-        """
-        try:
-            serializer = MessageSerializer(data=message_data)
-            serializer.is_valid(raise_exception=True)
-            message = serializer.save()
-        except ValidationError as e:
-            err = getattr(e, 'error_dict', {}).get('__all__', [])
-            if len(err) == 1 and getattr(err[0], 'code', None) == 'unique_together':
-                chk = getattr(err[0], 'params', {}).get('unique_check', tuple())
-                if set(chk) == {'conversation', 'sender', 'local_id'}:
-                    # Ignore duplicate message
-                    return None
-            raise
-        return cast(Message, message)
-
-
-# noinspection PyUnusedLocal
-@receiver(
-    [post_save, post_delete],
-    sender=Participant,
-    dispatch_uid='consumer_participant_watcher',
-)
-def _participant_watcher(sender: Any, instance: Participant, **kwargs: Any) -> None:
-    async_to_sync(ConversationConsumer.broadcast_state)(
-        instance.conversation.id,
-        {
-            'participants': ParticipantSerializer(
-                instance.conversation.participants.all(), many=True
-            ).data
-        },
-    )
-
-
-class ConversationInfo(NamedTuple):
-    """Contains basic conversation information available to bots."""
-
-    conversation_id: str
-    bot_participant_id: str
-    send_function: Callable[[dict[str, Any]], Message]
-
-
-# noinspection PyUnusedLocal
-@receiver([post_save], sender=Message, dispatch_uid='consumer_message_watcher')
-def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
-    if not transaction.get_connection().in_atomic_block:
-        _watcher_for_bots(instance)
-    else:
-        transaction.on_commit(lambda: _watcher_for_bots(instance))
-
-
-def _watcher_for_bots(instance: Message) -> None:
-
-    async_to_sync(ConversationConsumer.broadcast_message)(
-        instance.conversation.id, instance
-    )
-
-    # bots
-    bots = all_bots()
-    use_bots = []
-    for p in instance.conversation.participants.all():
-        if p.type == Participant.BOT:
-            try:
-                bot_spec = bots[p.name]
-            except KeyError:
-                pass
-            else:
-                use_bots.append((bot_spec, p.id))
-    for (module_name, cls_name, *a), bot_participant_id in use_bots:
-        m = import_module(module_name)
-        cls = m
-        for c in cls_name.split('.'):
-            cls = getattr(cls, c)
-        args = a[0] if len(a) >= 1 else []
-        kwargs = a[1] if len(a) >= 2 else {}
-
-        def send(message_data: dict[str, Any]) -> Message:
-            return async_to_sync(ConversationConsumer.create_message)(
-                dict(
-                    **message_data,
-                    conversation_id=instance.conversation.id,
-                    sender_id=bot_participant_id,
-                )
-            )
-
-        conv_info = ConversationInfo(instance.conversation.id, bot_participant_id, send)
-        # noinspection PyCallingNonCallable
-        bot_instance = cls(conv_info, *args, **kwargs)
-        bot_instance.receive_message(instance)
+        """  # noqa: DAR402
+        return MessageSerializer.create_message(message_data)
 
 
 __all__ = [ConversationConsumer]

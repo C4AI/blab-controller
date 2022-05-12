@@ -200,3 +200,13 @@ structlog.configure(
     wrapper_class=structlog.stdlib.BoundLogger,  # noqa
     cache_logger_on_first_use=True,
 )
+
+
+# Celery
+
+_celery_port = 25225
+CELERY_BROKER_URL = f'redis://localhost:{_celery_port}'
+CELERY_RESULT_BACKEND = f'redis://localhost:{_celery_port}'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'

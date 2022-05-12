@@ -14,7 +14,7 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
 - Install `python3-venv`, `python3-pip` and `python3-dev`, or the equivalent packages for your Linux distribution.
   It is possible that `python3-venv` corresponds to a different Python version.
 
-- Install `redis-server`, which will be used to handle the WebSocket connections.
+- Install `redis-server`, which will be used to handle the WebSocket connections and manage the bot message queue.
 
 - Install [Poetry](https://python-poetry.org/) (version 1.2 or newer):
 
@@ -94,15 +94,15 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   To start the development server, run:
 
   ```shell
-  poetry run ./blab-controller/manage.py runserver
+  ./blab-controller/run_DEV.sh
   ```
+
+  Then, open http://localhost:8000/api/chat/ to see the REST API (append `/_docs/` to see the OpenAPI description).
 
 - **(In production environments)** <br/> Generate the static files:
   ```shell
   poetry run ./blab-controller/manage.py collectstatic
   ```
-
-  Open http://localhost:8000/api/chat/ to see the REST API (append `/_docs/` to see the OpenAPI description).
 
 - **(In production environments)** <br/>
   Follow [Django's instructions](https://docs.djangoproject.com/en/4.0/howto/deployment/) to set up the interaction
@@ -157,6 +157,7 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
         ```
     - Run `systemctl enable blab-gunicorn blab-daphne` and `systemctl start blab-gunicorn blab-daphne` as root to enable
       the services and start them immediately.
+    - Create the service files for Celery and Redis Server (for Celery). **TODO**
     - Install [Apache HTTP Server](https://httpd.apache.org/) (e.g. `apt install apache2` as root) if it is not
       installed yet.
     - Enable Apache's

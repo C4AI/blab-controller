@@ -23,8 +23,8 @@ INSTALLED_APPS += [
 ##########################################################################
 
 INSTALLED_BOTS = {
-    'ECHO': ('chat.bots', 'UpperCaseEchoBot', []),
-    'Calculator': ('chat.bots', 'CalculatorBot', []),
+    'ECHO': ('chat.bots', 'UpperCaseEchoBot', [], {}),
+    'Calculator': ('chat.bots', 'CalculatorBot', [], {}),
 }
 """Installed bots.
 

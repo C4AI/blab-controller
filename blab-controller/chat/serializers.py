@@ -347,3 +347,32 @@ class MessageSerializer(ModelSerializer):
             # options
             'options',
         )
+
+    @classmethod
+    def create_message(cls, message_data: dict[str, Any]) -> Message | None:
+        """Create a message and save it to the database.
+
+        Args:
+            message_data: message parameters and data
+
+        Raises:
+            ValidationError: if validation fails
+
+        Returns:
+            the new instance of :cls:`Message` if it was saved successfully,
+            or ``None`` if it was not saved because it is duplicate (same
+            ``local_id`` and sender as an existing message).
+        """
+        try:
+            serializer = MessageSerializer(data=message_data)
+            serializer.is_valid(raise_exception=True)
+            message = serializer.save()
+        except ValidationError as e:
+            err = getattr(e, 'error_dict', {}).get('__all__', [])
+            if len(err) == 1 and getattr(err[0], 'code', None) == 'unique_together':
+                chk = getattr(err[0], 'params', {}).get('unique_check', tuple())
+                if set(chk) == {'conversation', 'sender', 'local_id'}:
+                    # Ignore duplicate message
+                    return None
+            raise
+        return cast(Message, message)
