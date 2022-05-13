@@ -123,7 +123,7 @@ class CalculatorBot(Bot):
             return str(result)
 
 
-def all_bots() -> dict[str, list[str, Any, ...]]:
+def all_bots() -> dict[str, tuple[str, str, list[Any], dict[Any, Any]]]:
     """Return all installed bots.
 
     Returns:

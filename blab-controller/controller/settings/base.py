@@ -204,7 +204,8 @@ structlog.configure(
 
 # Celery
 
-_celery_port = 25225
+CHAT_ENABLE_QUEUE = True
+_celery_port = 6379
 CELERY_BROKER_URL = f'redis://localhost:{_celery_port}'
 CELERY_RESULT_BACKEND = f'redis://localhost:{_celery_port}'
 CELERY_ACCEPT_CONTENT = ['application/json']

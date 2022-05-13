@@ -157,7 +157,7 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
         ```
     - Run `systemctl enable blab-gunicorn blab-daphne` and `systemctl start blab-gunicorn blab-daphne` as root to enable
       the services and start them immediately.
-    - Create the service files for Celery and Redis Server (for Celery). **TODO**
+    - Create the service files for Celery. **TODO**
     - Install [Apache HTTP Server](https://httpd.apache.org/) (e.g. `apt install apache2` as root) if it is not
       installed yet.
     - Enable Apache's

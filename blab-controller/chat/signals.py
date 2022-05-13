@@ -3,6 +3,7 @@
 from typing import Any
 
 from asgiref.sync import async_to_sync
+from django.conf import settings
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
@@ -55,7 +56,8 @@ def _watcher_for_bots(instance: Message) -> None:
             except KeyError:
                 pass
             else:
-                send_to_bot.delay(bot_spec, str(p.id), instance.id)
+                func = send_to_bot.delay if settings.CHAT_ENABLE_QUEUE else send_to_bot
+                func(bot_spec, str(p.id), instance.id)
 
 
 __all__ = []
