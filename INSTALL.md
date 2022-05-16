@@ -232,10 +232,7 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
       Generate the static files:
 
       ```shell
-      poetry run ./blab-c
-
-
-      ontroller/manage.py collectstatic
+      poetry run ./blab-controller/manage.py collectstatic
       ```
 
     - Restart Gunicorn:
