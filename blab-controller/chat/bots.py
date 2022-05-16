@@ -130,4 +130,4 @@ def all_bots() -> dict[str, tuple[str, str, list[Any], dict[Any, Any]]]:
     """
     from django.conf import settings
 
-    return settings.INSTALLED_BOTS
+    return settings.CHAT_INSTALLED_BOTS

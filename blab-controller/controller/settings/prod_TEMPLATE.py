@@ -22,14 +22,14 @@ INSTALLED_APPS += [
 
 ##########################################################################
 
-INSTALLED_BOTS = {
+CHAT_INSTALLED_BOTS = {
     'ECHO': ('chat.bots', 'UpperCaseEchoBot', [], {}),
     'Calculator': ('chat.bots', 'CalculatorBot', [], {}),
 }
 """Installed bots.
 
-Each key is the bot name, and the value is a 3-tuple
-(module, class, additional constructor arguments).
+Each key is the bot name, and the value is a 4-tuple
+(module, class, positional arguments, keyword arguments).
 """
 
 ##########################################################################

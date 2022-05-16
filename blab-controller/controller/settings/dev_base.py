@@ -13,7 +13,7 @@ INSTALLED_APPS += [
     'chat.apps.ChatConfig',
 ]
 
-INSTALLED_BOTS = {
+CHAT_INSTALLED_BOTS = {
     'ECHO': ('chat.bots', 'UpperCaseEchoBot', [], {}),
     'Calculator': ('chat.bots', 'CalculatorBot', [], {}),
 }
