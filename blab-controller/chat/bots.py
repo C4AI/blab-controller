@@ -38,7 +38,6 @@ class Bot:
         Args:
             message: the received message
         """
-        ...
 
 
 class UpperCaseEchoBot(Bot):
