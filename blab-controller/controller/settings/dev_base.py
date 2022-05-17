@@ -23,7 +23,7 @@ CHAT_LIMITS = {
     # maximum size of an attachment (in bytes)
     'MAX_IMAGE_SIZE': 15 * 2**20,
     # maximum size of an image (in bytes)
-    'MAX_VIDEO_SIZE': 15 * 2**20,
+    'MAX_VIDEO_SIZE': 25 * 2**20,
     # maximum size of an image (in bytes)
     'MAX_AUDIO_SIZE': 15 * 2**20,
     # maximum size of an audio file (in bytes)

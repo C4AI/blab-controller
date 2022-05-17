@@ -1,10 +1,12 @@
 """Contains serialising routines."""
 from typing import Any, Callable, cast
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Model
 from overrides import overrides
-from rest_framework.exceptions import ValidationError
+from rest_framework import status
+from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.fields import (
     CharField,
     FileField,
@@ -273,6 +275,27 @@ class MessageSerializer(ModelSerializer):
         if message_type == Message.MessageType.SYSTEM:
             raise ValidationError({'type': ['You cannot create system messages.']})
         options = validated_data.pop('options', None) or []
+
+        limits = getattr(settings, 'CHAT_LIMITS', {})
+        if f := validated_data.get('file', None):
+            match message_type:
+                case Message.MessageType.ATTACHMENT:
+                    limit = limits.get('MAX_ATTACHMENT_SIZE', 0)
+                case Message.MessageType.AUDIO:
+                    limit = limits.get('MAX_AUDIO_SIZE', 0)
+                case Message.MessageType.VIDEO:
+                    limit = limits.get('MAX_VIDEO_SIZE', 0)
+                case Message.MessageType.IMAGE:
+                    limit = limits.get('MAX_IMAGE_SIZE', 0)
+                case Message.MessageType.VOICE:
+                    limit = limits.get('MAX_VOICE_SIZE', 0)
+                case _:
+                    limit = 0
+            if f.size > limit:
+                raise APIException(
+                    f"MAX = {limit}", status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+                )
+
         with transaction.atomic():
             message = Message.objects.create(**validated_data)
             for option in options:
