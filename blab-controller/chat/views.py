@@ -4,18 +4,13 @@ from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping
 
 from django.conf import settings
-from django.db.models import Model, QuerySet
+from django.db.models import Model
 from django.http import QueryDict
 from django.utils.dateparse import parse_datetime
 from overrides import overrides
 from rest_framework.decorators import action
 from rest_framework.exceptions import ParseError, PermissionDenied, ValidationError
-from rest_framework.mixins import (
-    CreateModelMixin,
-    ListModelMixin,
-    RetrieveModelMixin,
-    UpdateModelMixin,
-)
+from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin
 from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -29,7 +24,6 @@ from .serializers import (
     ConversationOnListSerializer,
     ConversationSerializer,
     MessageSerializer,
-    ParticipantSerializer,
 )
 
 
@@ -53,7 +47,26 @@ class ConversationViewSet(
 
     @overrides
     def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        if not getattr(settings, 'CHAT_ENABLE_ROOMS', False):
+            raise PermissionDenied()
         return super().list(request, *args, **kwargs)
+
+    @overrides
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        if not getattr(settings, 'CHAT_ENABLE_ROOMS', False):
+            conversation_id = str(self.get_object().id)
+            existing = self.request.session.get(
+                'participation_in_conversation', {}
+            ).get(conversation_id, None)
+            if existing:
+                try:
+                    Participant.objects.get(pk=existing)
+                except Model.DoesNotExist:
+                    raise PermissionDenied()
+            else:
+                raise PermissionDenied()
+
+        return super().retrieve(request, *args, **kwargs)
 
     @overrides
     def perform_create(self, serializer: Serializer, **kwargs: Any) -> None:
@@ -127,6 +140,7 @@ class ConversationViewSet(
 
         Raises:
             ValidationError: if some validation fails
+            PermissionDenied: if the user tries to join someone else's conversation
 
         Args:
             request: the HTTP request
@@ -156,6 +170,8 @@ class ConversationViewSet(
             except Model.DoesNotExist:
                 pass
         if not p:
+            if not getattr(settings, 'CHAT_ENABLE_ROOMS', False):
+                raise PermissionDenied()
             p = Participant.objects.create(
                 conversation=self.get_object(), type=Participant.HUMAN, name=nickname
             )
@@ -171,20 +187,6 @@ class ConversationViewSet(
         return Response(cs.data)
 
 
-class ConversationParticipantsViewSet(
-    ListModelMixin, UpdateModelMixin, RetrieveModelMixin, GenericViewSet
-):
-    """API endpoint that allows access to conversation participants."""
-
-    serializer_class = ParticipantSerializer
-
-    @overrides
-    def get_queryset(self) -> QuerySet:
-        return Participant.objects.filter(
-            conversation=self.kwargs.get('conversation_id')
-        )
-
-
 class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewSet):
     """API endpoint that allows access to conversation messages."""
 
@@ -198,7 +200,7 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewS
         log.info('trying to register sent message')
         participant = self._get_participant()
         if not participant:
-            raise PermissionDenied('You are not in this conversation.')
+            raise PermissionDenied()
 
         data: Mapping[str, Any] = request.data
         if isinstance(data, QueryDict):
@@ -232,7 +234,7 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewS
     def get_queryset(self) -> Iterable[Message]:
         conversation_id = str(self.kwargs['conversation_id'])
         if not self._get_participant():
-            raise PermissionDenied('You are not in this conversation.')
+            raise PermissionDenied()
         q = Message.objects.filter(conversation_id=conversation_id)
         now = datetime.now(timezone.utc)
         if (until_str := self.request.query_params.get('until')) is not None:

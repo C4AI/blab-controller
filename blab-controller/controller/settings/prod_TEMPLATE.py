@@ -170,6 +170,9 @@ https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Secur
 # IT IS NOT NECESSARY TO EDIT THE CONTENTS BELOW
 ##########################################################################
 
+
+CHAT_ENABLE_ROOMS = False
+
 DEBUG = False
 
 CORS_ALLOW_CREDENTIALS = True
