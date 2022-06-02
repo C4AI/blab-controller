@@ -30,6 +30,9 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   POETRY_VIRTUALENVS_IN_PROJECT=true poetry install
   ```
 
+  Optionally, run `poetry shell` to open a shell that uses the virtual environment, and
+  all the commands below can be executed on that shell without prefixing them with `poetry run`.
+
 - **(In development and test environments)** <br/>
   To install additional dependencies for development, documentation generation and testing, add the arguments
   `--with dev,doc,test` to the command in the last step. To avoid the installation of production-only dependencies,
@@ -94,7 +97,7 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   To start the development server, run:
 
   ```shell
-  ./blab-controller/run_DEV.sh
+  poetry run ./blab-controller/run_DEV.sh
   ```
 
   Then, open http://localhost:8000/api/chat/ to see the REST API (append `/_docs/` to see the OpenAPI description).
