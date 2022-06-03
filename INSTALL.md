@@ -30,9 +30,6 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   POETRY_VIRTUALENVS_IN_PROJECT=true poetry install
   ```
 
-  Optionally, run `poetry shell` to open a shell that uses the virtual environment, and
-  all the commands below can be executed on that shell without prefixing them with `poetry run`.
-
 - **(In development and test environments)** <br/>
   To install additional dependencies for development, documentation generation and testing, add the arguments
   `--with dev,doc,test` to the command in the last step. To avoid the installation of production-only dependencies,
@@ -78,6 +75,9 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
 
 - **(In development environments)** <br/>
   In *blab-controller/controller/settings/*, create a copy of the file *dev_TEMPLATE.py* and name it *dev.py*.
+
+- Optionally, run `poetry shell` to open a shell that uses the virtual environment, and
+  all the commands below can be executed on that shell without prefixing them with `poetry run`.
 
 - Let Django create the database tables:
 
