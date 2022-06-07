@@ -122,7 +122,7 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
       poetry run pip install gunicorn daphne
       ```
 
-    - Create the service files for Gunicorn and Daphne in the directory */etc/systemd/system/*, changing the usernames,
+    - Create the service files for Gunicorn, Daphne and Celery in the directory */etc/systemd/system/*, changing the usernames,
       ports and paths as needed:
 
         ```ini
@@ -158,9 +158,25 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
         [Install]
         WantedBy=multi-user.target
         ```
-    - Run `systemctl enable blab-gunicorn blab-daphne` and `systemctl start blab-gunicorn blab-daphne` as root to enable
+
+        ```ini
+        # /etc/systemd/system/blab-celery.service
+        [Unit]
+        Description=Celery daemon for BLAB
+        After=network.target
+
+        [Service]
+        User=user_name_here
+        Group=www-data
+        Restart=always
+        WorkingDirectory=/somewhere/blab-controller/blab-controller
+        ExecStart=/somewhere/blab-controller/.venv/bin/python -m celery -A controller worker -l INFO
+
+        [Install]
+        WantedBy=multi-user.target
+        ```
+    - Run `systemctl enable blab-gunicorn blab-daphne blab-celery` and `systemctl start blab-gunicorn blab-daphne blab-celery` as root to enable
       the services and start them immediately.
-    - Create the service files for Celery. **TODO**
     - Install [Apache HTTP Server](https://httpd.apache.org/) (e.g. `apt install apache2` as root) if it is not
       installed yet.
     - Enable Apache's
