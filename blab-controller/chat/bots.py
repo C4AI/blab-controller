@@ -1,7 +1,10 @@
 """Contains a basic class that implements a chat bot."""
+import json
+from http.client import HTTPConnection
 from time import sleep
 from typing import Any, Callable, Protocol
 
+from django.contrib.sessions.backends.db import SessionStore
 from overrides import overrides
 
 from .models import Message
@@ -11,7 +14,7 @@ class ConversationInfo(Protocol):
     """Conversation interface available to bots."""
 
     conversation_id: str
-    my_participant_id: str
+    bot_participant_id: str
     send_function: Callable[[dict[str, Any]], Message]
 
 
@@ -120,6 +123,39 @@ class CalculatorBot(Bot):
             return invalid_output
         else:
             return str(result)
+
+
+class WebSocketExternalBot(Bot):
+    """External bot that interacts with the controller via WebSocket."""
+
+    @overrides
+    def receive_message(self, message: Message) -> None:
+        if (
+            message.type == Message.MessageType.SYSTEM
+            and message.text == Message.SystemEvent.JOINED
+            and message.additional_metadata['participant_id']
+            == self.conversation_info.bot_participant_id
+        ):
+            session = SessionStore()
+            session.cycle_key()
+            session['participation_in_conversation'] = {
+                str(self.conversation_info.conversation_id): str(
+                    self.conversation_info.bot_participant_id
+                )
+            }
+            session.save()
+
+            data = {
+                'conversation_id': str(self.conversation_info.conversation_id),
+                'bot_participant_id': str(self.conversation_info.bot_participant_id),
+                'session': session.session_key,
+            }
+            HTTPConnection('localhost', 25226).request(
+                'POST', '/', json.dumps(data), {'Content-Type': 'application/json'}
+            )
+
+        if not message.sent_by_human():
+            return
 
 
 def all_bots() -> dict[str, tuple[str, str, list[Any], dict[Any, Any]]]:

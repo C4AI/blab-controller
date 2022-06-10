@@ -49,15 +49,16 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         )
         await self.accept()
 
-        msg = await database_sync_to_async(Message.objects.create)(
-            type=Message.MessageType.SYSTEM,
-            text=Message.SystemEvent.JOINED,
-            additional_metadata={
-                'participant_id': str(self.participant.id),
-            },
-            conversation_id=self.conversation_id,
-        )
-        database_sync_to_async(msg.save)()
+        if self.participant.type != Participant.BOT:
+            msg = await database_sync_to_async(Message.objects.create)(
+                type=Message.MessageType.SYSTEM,
+                text=Message.SystemEvent.JOINED,
+                additional_metadata={
+                    'participant_id': str(self.participant.id),
+                },
+                conversation_id=self.conversation_id,
+            )
+            database_sync_to_async(msg.save)()
 
         participants = await database_sync_to_async(
             lambda: ParticipantSerializer(
