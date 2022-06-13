@@ -1,12 +1,14 @@
 """Contains a basic class that implements a chat bot."""
 import json
-from http.client import HTTPConnection
+from http.client import HTTPConnection, HTTPSConnection
 from time import sleep
 from typing import Any, Callable, Protocol
+from urllib.parse import urlparse
 
 from django.contrib.sessions.backends.db import SessionStore
 from overrides import overrides
 
+from . import blab_logger as logger
 from .models import Message
 
 
@@ -128,6 +130,16 @@ class CalculatorBot(Bot):
 class WebSocketExternalBot(Bot):
     """External bot that interacts with the controller via WebSocket."""
 
+    def __init__(self, conversation_info: ConversationInfo, trigger_url: str):
+        """.
+
+        Args:
+            conversation_info: conversation data
+            trigger_url: HTTP URL to be requested for every new conversation
+        """
+        super().__init__(conversation_info)
+        self.trigger_url = trigger_url
+
     @overrides
     def receive_message(self, message: Message) -> None:
         if (
@@ -136,26 +148,39 @@ class WebSocketExternalBot(Bot):
             and message.additional_metadata['participant_id']
             == self.conversation_info.bot_participant_id
         ):
-            session = SessionStore()
-            session.cycle_key()
-            session['participation_in_conversation'] = {
-                str(self.conversation_info.conversation_id): str(
-                    self.conversation_info.bot_participant_id
-                )
-            }
-            session.save()
+            self._start_bot()
 
-            data = {
-                'conversation_id': str(self.conversation_info.conversation_id),
-                'bot_participant_id': str(self.conversation_info.bot_participant_id),
-                'session': session.session_key,
-            }
-            HTTPConnection('localhost', 25226).request(
-                'POST', '/', json.dumps(data), {'Content-Type': 'application/json'}
+    def _start_bot(self) -> None:
+        session = SessionStore()
+        session.cycle_key()
+        session['participation_in_conversation'] = {
+            str(self.conversation_info.conversation_id): str(
+                self.conversation_info.bot_participant_id
             )
+        }
+        session.save()
 
-        if not message.sent_by_human():
-            return
+        data = {
+            'conversation_id': str(self.conversation_info.conversation_id),
+            'bot_participant_id': str(self.conversation_info.bot_participant_id),
+            'session': session.session_key,
+        }
+
+        o = urlparse(self.trigger_url)
+        match (o.scheme or '').lower():
+            case 'http':
+                connection = HTTPConnection(o.hostname, o.port or 80)
+            case 'https':
+                connection = HTTPSConnection(o.hostname, o.port or 443)
+            case _:
+                logger.warn(
+                    "bot not started - invalid or missing protocol in its URL",
+                    url=self.trigger_url,
+                )
+                return
+        connection.request(
+            'POST', o.path, json.dumps(data), {'Content-Type': 'application/json'}
+        )
 
 
 def all_bots() -> dict[str, tuple[str, str, list[Any], dict[Any, Any]]]:
