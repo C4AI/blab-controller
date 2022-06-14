@@ -181,13 +181,15 @@ class MessageOptionSerializer(ModelSerializer):
         fields = ('option_text', 'position')
 
 
-# noinspection PyAbstractClass
+# noinspection PyAbstractClass,PyMethodMayBeStatic
 class MessageSerializer(ModelSerializer):
     """Serialises messages."""
 
     conditional = ConditionalFields()
 
     id = CharField(source='m_id', read_only=True)
+
+    sent_by_human = SerializerMethodField(read_only=True)
 
     additional_metadata = SerializerMethodField()
     conditional('additional_metadata', _only_system)
@@ -236,6 +238,14 @@ class MessageSerializer(ModelSerializer):
         if message.file:
             return message.file.url
         return message.external_file_url or None
+
+    def get_sent_by_human(self, message: Message) -> bool:
+        """Return True if the message sender is human.
+
+        Returns:
+            True if the message was sent by a person, False otherwise
+        """
+        return message.sent_by_human()
 
     def get_file_name(self, message: Message) -> str | None:
         """Return the original name of the attached file.
@@ -354,6 +364,7 @@ class MessageSerializer(ModelSerializer):
             'type',
             'time',
             'id',
+            'sent_by_human',
             # system messages
             'event',
             'additional_metadata',
