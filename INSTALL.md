@@ -29,6 +29,8 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
   ```shell
   POETRY_VIRTUALENVS_IN_PROJECT=true poetry install
   ```
+  
+  If `DBusErrorResponse` errors related to keyrings are shown, run `export PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring` and try again.
 
 - **(In development and test environments)** <br/>
   To install additional dependencies for development, documentation generation and testing, add the arguments
