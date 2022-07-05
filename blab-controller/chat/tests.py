@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from .models import Conversation, Message, Participant
+from .serializers import MessageSerializer
 
 
 class ConversationTest(TestCase):
@@ -69,3 +70,30 @@ class ConversationTest(TestCase):
             sender=self.p2,
         )
         self.assertListEqual([m1, m2], list(self.c.messages.all()))
+
+    def test_simple_conversation_2(self) -> None:
+        texts = ['Hi', 'Hello']
+        s1 = MessageSerializer(
+            data=dict(
+                type=Message.MessageType.TEXT,
+                text=texts[0],
+                conversation_id=self.c.id,
+                sender_id=self.p1.id,
+            )
+        )
+        s1.is_valid(raise_exception=True)
+        s1.save()
+        s2 = MessageSerializer(
+            data=dict(
+                type=Message.MessageType.TEXT,
+                text=texts[1],
+                conversation_id=self.c.id,
+                sender_id=self.p2.id,
+            )
+        )
+        s2.is_valid(raise_exception=True)
+        s2.save()
+        messages = self.c.messages.all()
+        self.assertEqual(2, len(messages))
+        self.assertEqual(texts[0], messages[0].text)
+        self.assertEqual(texts[1], messages[1].text)
