@@ -61,7 +61,3 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
 ]
-
-if (BASE_DIR / 'controller' / 'settings' / 'dev.py.py').is_file():
-    # noinspection PyUnresolvedReferences
-    from .dev import *  # noqa F401
