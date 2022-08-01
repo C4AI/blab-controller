@@ -36,13 +36,14 @@ def _participant_watcher(sender: Any, instance: Participant, **kwargs: Any) -> N
 @receiver([post_save], sender=Message, dispatch_uid='consumer_message_watcher')
 def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
     if not transaction.get_connection().in_atomic_block:
-        _watcher_for_bots(instance)
+        _message_watcher_function(instance)
     else:
-        transaction.on_commit(lambda: _watcher_for_bots(instance))
+        transaction.on_commit(lambda: _message_watcher_function(instance))
 
 
-def _watcher_for_bots(instance: Message) -> None:
+def _message_watcher_function(instance: Message) -> None:
 
+    # broadcast to all users
     async_to_sync(ConversationConsumer.broadcast_message)(
         instance.conversation.id, instance
     )
