@@ -201,7 +201,6 @@ structlog.configure(
     cache_logger_on_first_use=True,
 )
 
-
 # Celery
 
 CHAT_ENABLE_QUEUE = True
@@ -211,3 +210,41 @@ CELERY_RESULT_BACKEND = f'redis://localhost:{_celery_port}'
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
+
+
+def internal_bot(
+    *,
+    package: str,
+    class_name: str,
+    args: list[Any] | None = None,
+    kwargs: dict[str, Any] | None = None,
+) -> tuple[str, str, list[Any], dict[str, Any]]:
+    """Return a tuple with the given arguments.
+
+    This is a convenience method.
+
+    Args:
+        package: the package that contains the bot class
+        class_name: the bot class that extends Bot (bots.py)
+        args: positional arguments to be passed to the bot's constructor
+            after conversation_info
+        kwargs: keyword arguments to be passed to the bot's constructor
+
+    Returns:
+        a tuple: (package, class_name, args, kwargs)
+    """
+    return package, class_name, args or [], kwargs or {}
+
+
+def websocket_external_bot(*, url: str) -> tuple[str, str, list[Any], dict[str, Any]]:
+    """Return a tuple with information to run a WebSocketExternalBot.
+
+    Args:
+        url: a full HTTP/HTTPS address (with protocol, hostname, optional port and path,
+            e.g. "https://www.example.com:8080/path") at which the external bot will
+            be listening to POST requests
+
+    Returns:
+        a tuple (package, class_name, args, kwargs)
+    """
+    return 'chat.bots', 'WebSocketExternalBot', [url], {}

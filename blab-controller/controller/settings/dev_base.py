@@ -14,8 +14,8 @@ INSTALLED_APPS += [
 ]
 
 CHAT_INSTALLED_BOTS = {
-    'ECHO': ('chat.bots', 'UpperCaseEchoBot', [], {}),
-    'Calculator': ('chat.bots', 'CalculatorBot', [], {}),
+    'ECHO': internal_bot(package='chat.bots', class_name='UpperCaseEchoBot'),
+    'Calculator': internal_bot(package='chat.bots', class_name='CalculatorBot'),
 }
 
 CHAT_LIMITS = {
@@ -30,7 +30,6 @@ CHAT_LIMITS = {
     'MAX_VOICE_SIZE': 15 * 2**20,
     # maximum size of any voice recording file (in bytes)
 }
-
 
 MEDIA_ROOT = BASE_DIR / '.media'
 
