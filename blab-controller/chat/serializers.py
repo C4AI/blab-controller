@@ -47,14 +47,14 @@ class ConversationOnListSerializer(ModelSerializer):
             session is not connected to the conversation
         """
         return (
-            self.context['request']
-            .session.setdefault('participation_in_conversation', {})
+            self.context["request"]
+            .session.setdefault("participation_in_conversation", {})
             .get(str(conversation.id))
         )
 
     class Meta:
         model = Conversation
-        fields = ('id', 'name', 'created_at', 'participant_count', 'my_participant_id')
+        fields = ("id", "name", "created_at", "participant_count", "my_participant_id")
 
 
 class ParticipantSerializer(ModelSerializer):
@@ -62,8 +62,8 @@ class ParticipantSerializer(ModelSerializer):
 
     class Meta:
         model = Participant
-        fields = ('id', 'name', 'type')
-        read_only_fields = ('id', 'type')
+        fields = ("id", "name", "type")
+        read_only_fields = ("id", "type")
 
 
 class ConversationSerializer(ModelSerializer):
@@ -83,15 +83,15 @@ class ConversationSerializer(ModelSerializer):
             session is not connected to the conversation
         """
         return (
-            self.context['request']
-            .session.setdefault('participation_in_conversation', {})
+            self.context["request"]
+            .session.setdefault("participation_in_conversation", {})
             .get(str(conversation.id))
         )
 
     class Meta:
         model = Conversation
-        fields = ('id', 'name', 'created_at', 'participants', 'my_participant_id')
-        read_only_fields = ['participants']
+        fields = ("id", "name", "created_at", "participants", "my_participant_id")
+        read_only_fields = ["participants"]
 
 
 class ConditionalFields:
@@ -124,7 +124,7 @@ def _only_type(t: str) -> Callable[[Message | dict[str, Any]], bool]:
         isinstance(m, Message)
         and m.type == t
         or isinstance(m, dict)
-        and m.get('type', None) == t
+        and m.get("type", None) == t
     )
 
 
@@ -133,7 +133,7 @@ def _only_not_type(t: str) -> Callable[[Message | dict[str, Any]], bool]:
         isinstance(m, Message)
         and m.type != t
         or isinstance(m, dict)
-        and m.get('type', None) != t
+        and m.get("type", None) != t
     )
 
 
@@ -146,7 +146,7 @@ def _only_with_options(m: Message | dict[str, Any]) -> bool:
         isinstance(m, Message)
         and m.options
         or isinstance(m, dict)
-        and bool(m.get('options', []))
+        and bool(m.get("options", []))
     )
 
 
@@ -154,7 +154,7 @@ def _only_with_file(m: Message | dict[str, Any]) -> bool:
     t = (
         m.type
         if isinstance(m, Message)
-        else m.get('type', None)
+        else m.get("type", None)
         if isinstance(m, dict)
         else None
     )
@@ -173,12 +173,12 @@ class MessageOptionSerializer(ModelSerializer):
     @overrides
     def to_internal_value(self, data: str | dict[str, Any]) -> dict[str, Any]:
         if isinstance(data, str):
-            return {'option_text': data, 'position': 0}
+            return {"option_text": data, "position": 0}
         return data
 
     class Meta:
         model = MessageOption
-        fields = ('option_text', 'position')
+        fields = ("option_text", "position")
 
 
 # noinspection PyAbstractClass,PyMethodMayBeStatic
@@ -187,41 +187,41 @@ class MessageSerializer(ModelSerializer):
 
     conditional = ConditionalFields()
 
-    id = CharField(source='m_id', read_only=True)
+    id = CharField(source="m_id", read_only=True)
 
     sent_by_human = SerializerMethodField(read_only=True)
 
     additional_metadata = SerializerMethodField()
-    conditional('additional_metadata', _only_system)
+    conditional("additional_metadata", _only_system)
 
-    event = CharField(source='text', read_only=True)
-    conditional('event', _only_system)
+    event = CharField(source="text", read_only=True)
+    conditional("event", _only_system)
 
     quoted_message_id = CharField(
-        source='quoted_message.m_id', allow_null=True, allow_blank=True, required=False
+        source="quoted_message.m_id", allow_null=True, allow_blank=True, required=False
     )
-    conditional('quoted_message_id', _only_non_system)
+    conditional("quoted_message_id", _only_non_system)
 
     sender_id = CharField(read_only=True)
-    conditional('sender_id', _only_non_system)
+    conditional("sender_id", _only_non_system)
 
-    conditional('local_id', _only_non_system)
-    conditional('text', _only_non_system)
+    conditional("local_id", _only_non_system)
+    conditional("text", _only_non_system)
 
     file_url = SerializerMethodField()
-    conditional('file_url', _only_with_file)
+    conditional("file_url", _only_with_file)
 
     file_size = IntegerField(read_only=True)
-    conditional('file_size', _only_with_file)
+    conditional("file_size", _only_with_file)
 
     file_name = SerializerMethodField()
-    conditional('file_name', _only_with_file)
+    conditional("file_name", _only_with_file)
 
     file = FileField(write_only=True, allow_null=True, required=False)
-    conditional('file', _only_with_file)
+    conditional("file", _only_with_file)
 
     options = MessageOptionSerializer(many=True, required=False)
-    conditional('options', _only_with_options)
+    conditional("options", _only_with_options)
 
     def get_file_url(self, message: Message) -> str | None:
         """Return the URL to download the attached file.
@@ -262,7 +262,7 @@ class MessageSerializer(ModelSerializer):
         if message.file:
             return message.original_file_name
         if message.external_file_url:
-            return message.external_file_url.rsplit('?', 1)[0].rsplit('/', 1)[-1]
+            return message.external_file_url.rsplit("?", 1)[0].rsplit("/", 1)[-1]
         return None
 
     def get_additional_metadata(self, message: Message) -> dict[str, Any] | None:
@@ -281,24 +281,24 @@ class MessageSerializer(ModelSerializer):
 
     @overrides
     def create(self, validated_data: dict[str, Any]) -> Model:
-        message_type = validated_data.get('type', None)
+        message_type = validated_data.get("type", None)
         if message_type == Message.MessageType.SYSTEM:
-            raise ValidationError({'type': ['You cannot create system messages.']})
-        options = validated_data.pop('options', None) or []
+            raise ValidationError({"type": ["You cannot create system messages."]})
+        options = validated_data.pop("options", None) or []
 
-        limits = getattr(settings, 'CHAT_LIMITS', {})
-        if f := validated_data.get('file', None):
+        limits = getattr(settings, "CHAT_LIMITS", {})
+        if f := validated_data.get("file", None):
             match message_type:
                 case Message.MessageType.ATTACHMENT:
-                    limit = limits.get('MAX_ATTACHMENT_SIZE', 0)
+                    limit = limits.get("MAX_ATTACHMENT_SIZE", 0)
                 case Message.MessageType.AUDIO:
-                    limit = limits.get('MAX_AUDIO_SIZE', 0)
+                    limit = limits.get("MAX_AUDIO_SIZE", 0)
                 case Message.MessageType.VIDEO:
-                    limit = limits.get('MAX_VIDEO_SIZE', 0)
+                    limit = limits.get("MAX_VIDEO_SIZE", 0)
                 case Message.MessageType.IMAGE:
-                    limit = limits.get('MAX_IMAGE_SIZE', 0)
+                    limit = limits.get("MAX_IMAGE_SIZE", 0)
                 case Message.MessageType.VOICE:
-                    limit = limits.get('MAX_VOICE_SIZE', 0)
+                    limit = limits.get("MAX_VOICE_SIZE", 0)
                 case _:
                     limit = 0
             if f.size > limit:
@@ -320,31 +320,32 @@ class MessageSerializer(ModelSerializer):
             data.pop(f, None)
         d = super().to_internal_value(data)
 
-        quoted_message_m_id = d.pop('quoted_message', {}).get('m_id', None)
+        quoted_message_m_id = d.pop("quoted_message", {}).get("m_id", None)
         quoted_message = None
         if quoted_message_m_id:
             try:
                 quoted_message = Message.objects.get(m_id=quoted_message_m_id)
             except Message.DoesNotExist:
                 raise ValidationError(
-                    {'quoted_message_id': ['The quoted message does not exist.']}
+                    {"quoted_message_id": ["The quoted message does not exist."]}
                 )
-        d['quoted_message_id'] = quoted_message.id if quoted_message else None
+        d["quoted_message_id"] = quoted_message.id if quoted_message else None
 
         if _only_with_file(data):
-            if attachment := data.get('file', None):
-                d['file_size'] = attachment.size
-                d['mime_type'] = attachment.content_type
-                d['original_file_name'] = attachment.name
-            if external_url := data.get('external_file_url', None):
-                d['external_file_url'] = external_url
+            if attachment := data.get("file", None):
+                d["file_size"] = attachment.size
+                d["mime_type"] = attachment.content_type
+                d["original_file_name"] = attachment.name
+            if external_url := data.get("external_file_url", None):
+                d["external_file_url"] = external_url
 
         # these fields are filled by the controller's code
-        d['conversation_id'] = data['conversation_id']
-        d['sender_id'] = data['sender_id']
-        d['options'] = []
-        for i, o in enumerate(data.get('options', None) or []):
-            d['options'].append(dict(option_text=str(o), position=i + 1))
+        d["conversation_id"] = data["conversation_id"]
+        d["sender_id"] = data["sender_id"]
+        d["options"] = []
+        d["approval_status"] = data.get("approval_status", Message.ApprovalStatus.NO)
+        for i, o in enumerate(data.get("options", None) or []):
+            d["options"].append(dict(option_text=str(o), position=i + 1))
         return d
 
     @overrides
@@ -353,33 +354,33 @@ class MessageSerializer(ModelSerializer):
         delete = [f for f in result if not MessageSerializer.conditional[f](instance)]
         for f in delete:
             result.pop(f, None)
-        if 'options' in result:
-            result['options'] = list(map(lambda o: o['option_text'], result['options']))
+        if "options" in result:
+            result["options"] = list(map(lambda o: o["option_text"], result["options"]))
         return result
 
     class Meta:
         model = Message
         fields = (
             # all messages
-            'type',
-            'time',
-            'id',
-            'sent_by_human',
+            "type",
+            "time",
+            "id",
+            "sent_by_human",
             # system messages
-            'event',
-            'additional_metadata',
+            "event",
+            "additional_metadata",
             # non-system messages
-            'quoted_message_id',
-            'sender_id',
-            'local_id',
-            'text',
+            "quoted_message_id",
+            "sender_id",
+            "local_id",
+            "text",
             # messages with included files
-            'file',
-            'file_url',
-            'file_size',
-            'file_name',
+            "file",
+            "file_url",
+            "file_size",
+            "file_name",
             # options
-            'options',
+            "options",
         )
 
     @classmethod
@@ -402,10 +403,10 @@ class MessageSerializer(ModelSerializer):
             serializer.is_valid(raise_exception=True)
             message = serializer.save()
         except ValidationError as e:
-            err = getattr(e, 'error_dict', {}).get('__all__', [])
-            if len(err) == 1 and getattr(err[0], 'code', None) == 'unique_together':
-                chk = getattr(err[0], 'params', {}).get('unique_check', tuple())
-                if set(chk) == {'conversation', 'sender', 'local_id'}:
+            err = getattr(e, "error_dict", {}).get("__all__", [])
+            if len(err) == 1 and getattr(err[0], "code", None) == "unique_together":
+                chk = getattr(err[0], "params", {}).get("unique_check", tuple())
+                if set(chk) == {"conversation", "sender", "local_id"}:
                     # Ignore duplicate message
                     return None
             raise

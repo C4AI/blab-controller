@@ -1,5 +1,6 @@
 """Contains a basic class that implements a chat bot."""
 import json
+import re
 from http.client import HTTPConnection, HTTPSConnection
 from time import sleep
 from typing import Any, Callable, Protocol
@@ -22,8 +23,6 @@ class ConversationInfo(Protocol):
 
 class Bot:
     """Represents a chat bot."""
-
-    my_participant_id: str
 
     def __init__(self, conversation_info: ConversationInfo):
         """.
@@ -53,15 +52,15 @@ class UpperCaseEchoBot(Bot):
         if not message.sent_by_human():
             return
         if message.type != Message.MessageType.TEXT:
-            result = '?'
+            result = "?"
         else:
             result = message.text.upper()
         sleep(1)
         self.conversation_info.send_function(
             {
-                'type': Message.MessageType.TEXT,
-                'text': result,
-                'quoted_message_id': str(message.m_id),
+                "type": Message.MessageType.TEXT,
+                "text": result,
+                "quoted_message_id": str(message.m_id),
             },
         )
 
@@ -74,15 +73,15 @@ class CalculatorBot(Bot):
         if not message.sent_by_human():
             return
         if message.type != Message.MessageType.TEXT:
-            result = '?'
+            result = "?"
         else:
             result = self.evaluate(message.text)
         sleep(1)
         self.conversation_info.send_function(
             {
-                'type': Message.MessageType.TEXT,
-                'text': result,
-                'quoted_message_id': str(message.m_id),
+                "type": Message.MessageType.TEXT,
+                "text": result,
+                "quoted_message_id": str(message.m_id),
             },
         )
 
@@ -96,11 +95,11 @@ class CalculatorBot(Bot):
         Returns:
             the calculated result, or "?" if there are errors
         """
-        invalid_output = '?'
+        invalid_output = "?"
         try:
             import ast
 
-            parsed_tree = ast.parse(expression, mode='eval')
+            parsed_tree = ast.parse(expression, mode="eval")
         except SyntaxError:
             return invalid_output
         if not all(
@@ -120,11 +119,61 @@ class CalculatorBot(Bot):
             # it would not be safe if nodes of other types were allowed
             return invalid_output
         try:
-            result = eval(compile(parsed_tree, filename='', mode='eval'))
+            result = eval(compile(parsed_tree, filename="", mode="eval"))
         except ArithmeticError:
             return invalid_output
         else:
             return str(result)
+
+
+def manager_redirection(*bot_names_or_participants_ids: str) -> str:
+    if not bot_names_or_participants_ids:
+        return ""
+    return "TO:" + ",".join(bot_names_or_participants_ids)
+
+
+def manager_approval() -> str:
+    return "OK"
+
+
+class TransparentManagerBot(Bot):
+    @overrides
+    def receive_message(self, message: Message) -> None:
+        if (
+            message.sent_by_human()
+            or message.type == Message.MessageType.SYSTEM
+            or str(message.sender.id) == str(self.conversation_info.bot_participant_id)
+            or int(message.approval_status)
+        ):
+            return
+        result = manager_approval()
+        self.conversation_info.send_function(
+            {
+                "type": Message.MessageType.TEXT,
+                "text": result,
+                "quoted_message_id": str(message.m_id),
+            },
+        )
+
+
+class CalcOrEchoManagerBot(Bot):
+    @overrides
+    def receive_message(self, message: Message) -> None:
+        if not message.sent_by_human():
+            return
+        if message.type != Message.MessageType.TEXT:
+            return
+        if re.match(r"^[0-9+\-*/ ()]+$", message.text):
+            result = manager_redirection("Calculator")
+        else:
+            result = manager_redirection("ECHO")
+        self.conversation_info.send_function(
+            {
+                "type": Message.MessageType.TEXT,
+                "text": result,
+                "quoted_message_id": str(message.m_id),
+            },
+        )
 
 
 class WebSocketExternalBot(Bot):
@@ -145,7 +194,7 @@ class WebSocketExternalBot(Bot):
         if (
             message.type == Message.MessageType.SYSTEM
             and message.text == Message.SystemEvent.JOINED
-            and message.additional_metadata['participant_id']
+            and message.additional_metadata["participant_id"]
             == self.conversation_info.bot_participant_id
         ):
             self._start_bot()
@@ -153,7 +202,7 @@ class WebSocketExternalBot(Bot):
     def _start_bot(self) -> None:
         session = SessionStore()
         session.cycle_key()
-        session['participation_in_conversation'] = {
+        session["participation_in_conversation"] = {
             str(self.conversation_info.conversation_id): str(
                 self.conversation_info.bot_participant_id
             )
@@ -161,16 +210,16 @@ class WebSocketExternalBot(Bot):
         session.save()
 
         data = {
-            'conversation_id': str(self.conversation_info.conversation_id),
-            'bot_participant_id': str(self.conversation_info.bot_participant_id),
-            'session': session.session_key,
+            "conversation_id": str(self.conversation_info.conversation_id),
+            "bot_participant_id": str(self.conversation_info.bot_participant_id),
+            "session": session.session_key,
         }
 
         o = urlparse(self.trigger_url)
-        match (o.scheme or '').lower():
-            case 'http':
+        match (o.scheme or "").lower():
+            case "http":
                 connection = HTTPConnection(o.hostname, o.port or 80)
-            case 'https':
+            case "https":
                 connection = HTTPSConnection(o.hostname, o.port or 443)
             case _:
                 logger.warn(
@@ -179,7 +228,7 @@ class WebSocketExternalBot(Bot):
                 )
                 return
         connection.request(
-            'POST', o.path, json.dumps(data), {'Content-Type': 'application/json'}
+            "POST", o.path, json.dumps(data), {"Content-Type": "application/json"}
         )
 
 

@@ -19,13 +19,13 @@ from .tasks import send_to_bot
 @receiver(
     [post_save, post_delete],
     sender=Participant,
-    dispatch_uid='consumer_participant_watcher',
+    dispatch_uid="consumer_participant_watcher",
 )
 def _participant_watcher(sender: Any, instance: Participant, **kwargs: Any) -> None:
     async_to_sync(ConversationConsumer.broadcast_state)(
         instance.conversation.id,
         {
-            'participants': ParticipantSerializer(
+            "participants": ParticipantSerializer(
                 instance.conversation.participants.all(), many=True
             ).data
         },
@@ -33,7 +33,7 @@ def _participant_watcher(sender: Any, instance: Participant, **kwargs: Any) -> N
 
 
 # noinspection PyUnusedLocal
-@receiver([post_save], sender=Message, dispatch_uid='consumer_message_watcher')
+@receiver([post_save], sender=Message, dispatch_uid="consumer_message_watcher")
 def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
     if not transaction.get_connection().in_atomic_block:
         _message_watcher_function(instance)
@@ -42,11 +42,12 @@ def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
 
 
 def _message_watcher_function(instance: Message) -> None:
-
     # broadcast to all users
-    async_to_sync(ConversationConsumer.broadcast_message)(
-        instance.conversation.id, instance
-    )
+    async_to_sync(
+        ConversationConsumer.broadcast_message
+        if int(instance.approval_status)
+        else ConversationConsumer.send_message_to_bot_manager
+    )(instance.conversation.id, instance)
 
     # bots
     bots = all_bots()
