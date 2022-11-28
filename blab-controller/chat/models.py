@@ -155,7 +155,7 @@ class Message(models.Model):
     """
 
     class ApprovalStatus(models.IntegerChoices):
-        """Contains the possible situations in which a message can be regarding approval."""
+        """Contains the situations a message can be in regarding approval."""
 
         NO = 0, gettext("Not approved")
         AUTOMATICALLY_APPROVED = 1, gettext("Automatically approved")

@@ -12,7 +12,7 @@ from .bots import all_bots
 from .consumers import ConversationConsumer
 from .models import Message, Participant
 from .serializers import ParticipantSerializer
-from .tasks import send_to_bot
+from .tasks import send_message_to_bot, send_status_to_bot
 
 
 # noinspection PyUnusedLocal
@@ -22,14 +22,30 @@ from .tasks import send_to_bot
     dispatch_uid="consumer_participant_watcher",
 )
 def _participant_watcher(sender: Any, instance: Participant, **kwargs: Any) -> None:
+    participants = {
+        "participants": ParticipantSerializer(
+            instance.conversation.participants.all(), many=True
+        ).data
+    }
     async_to_sync(ConversationConsumer.broadcast_state)(
         instance.conversation.id,
-        {
-            "participants": ParticipantSerializer(
-                instance.conversation.participants.all(), many=True
-            ).data
-        },
+        participants,
     )
+
+    # for internal bots that don't use WebSockets:
+    bots = all_bots()
+    for p in instance.conversation.participants.all():
+        if p.type == Participant.BOT:
+            try:
+                bot_spec = bots[p.name]
+            except KeyError:
+                continue
+            func = (
+                send_status_to_bot.delay
+                if settings.CHAT_ENABLE_QUEUE
+                else send_status_to_bot
+            )
+            func(bot_spec, participants, str(p.id), instance.conversation.id)
 
 
 # noinspection PyUnusedLocal
@@ -58,7 +74,11 @@ def _message_watcher_function(instance: Message) -> None:
             except KeyError:
                 pass
             else:
-                func = send_to_bot.delay if settings.CHAT_ENABLE_QUEUE else send_to_bot
+                func = (
+                    send_message_to_bot.delay
+                    if settings.CHAT_ENABLE_QUEUE
+                    else send_message_to_bot
+                )
                 func(bot_spec, str(p.id), instance.id)
 
 

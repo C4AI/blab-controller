@@ -22,7 +22,8 @@ def _conversation_id_to_group_name(
 
     Args:
         conversation_id: id of the conversation
-        only_participant: if True, return the name of a group that contains only the specified participant
+        only_participant: if True, return the name of a group that contains
+            only the specified participant
         without_bots: if True, return the name of a group that does not contain bots
 
     Returns:
@@ -62,7 +63,8 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             self.conversation_group_name, self.channel_name
         )
 
-        # Bots have a specific channel for them; human users share a separate channel without bots
+        # Bots have a specific channel for them;
+        # human users share a separate channel without bots
         await self.channel_layer.group_add(
             _conversation_id_to_group_name(
                 self.conversation_id,

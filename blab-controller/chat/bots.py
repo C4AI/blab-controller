@@ -43,6 +43,15 @@ class Bot:
             message: the received message
         """
 
+    def update_status(self, status: dict[str, Any]) -> None:
+        """Receive a status update.
+
+        Example: the information that the list of participants has changed.
+
+        Args:
+            status: the status update
+        """
+
 
 class UpperCaseEchoBot(Bot):
     """Bot example - echoes text messages in upper-case letters."""
@@ -127,16 +136,36 @@ class CalculatorBot(Bot):
 
 
 def manager_redirection(*bot_names_or_participants_ids: str) -> str:
+    r"""Return a string that indicates the bots that will receive a given message.
+
+    Args:
+        bot_names_or_participants_ids: the names or ids of the bots
+
+    Returns:
+        the string "TO:\n" followed by a '\n'-separated list of bots that will
+        receive the message
+    """
     if not bot_names_or_participants_ids:
         return ""
-    return "TO:" + ",".join(bot_names_or_participants_ids)
+    return "TO:\n" + "\n".join(bot_names_or_participants_ids)
 
 
 def manager_approval() -> str:
+    """Return a string that indicates that a message has been appproved.
+
+    Returns:
+        the string "OK"
+    """
     return "OK"
 
 
 class TransparentManagerBot(Bot):
+    """Transparent bot manager.
+
+    It sends the user's messages to all bots
+        and accepts all bots' answers.
+    """
+
     @overrides
     def receive_message(self, message: Message) -> None:
         if (
@@ -157,16 +186,33 @@ class TransparentManagerBot(Bot):
 
 
 class CalcOrEchoManagerBot(Bot):
+    """Bot manager that selects between calculator and upper-case echo bots."""
+
+    @overrides
+    def __init__(self, conversation_info: ConversationInfo):
+        super().__init__(conversation_info)
+        self.participants = []
+
+    @overrides
+    def update_status(self, status: dict[str, Any]) -> None:
+        participants = status.get("participants", [])
+        if participants:
+            self.participants = {p["name"]: p for p in participants}
+
     @overrides
     def receive_message(self, message: Message) -> None:
         if not message.sent_by_human():
             return
         if message.type != Message.MessageType.TEXT:
             return
-        if re.match(r"^[0-9+\-*/ ()]+$", message.text):
+        if "Calculator" in self.participants and re.match(
+            r"^[0-9+\-*/ ()]+$", message.text
+        ):
             result = manager_redirection("Calculator")
-        else:
+        elif "ECHO" in self.participants:
             result = manager_redirection("ECHO")
+        else:
+            return
         self.conversation_info.send_function(
             {
                 "type": Message.MessageType.TEXT,
