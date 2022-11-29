@@ -22,7 +22,7 @@ def _conversation_id_to_group_name(
 
     Args:
         conversation_id: id of the conversation
-        only_participant: if True, return the name of a group that contains
+        only_participant: if present, return the name of a group that contains
             only the specified participant
         without_bots: if True, return the name of a group that does not contain bots
 
@@ -32,7 +32,7 @@ def _conversation_id_to_group_name(
     assert only_participant is None or not without_bots
     suffix = ""
     if only_participant:
-        suffix = "_" + only_participant
+        suffix = "_" + str(only_participant)
     elif without_bots:
         suffix = "__NO_BOTS"
     return "conversation_" + str(conversation_id) + suffix
@@ -129,16 +129,44 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         )
 
     @classmethod
-    async def broadcast_message(cls, conversation_id: str, message: Message) -> None:
-        """Send a message to all participants.
+    async def broadcast_message(
+        cls, conversation_id: str, message: Message, only_human: bool = False
+    ) -> None:
+        """Send a message to all participants, possibly excluding bots.
 
         Args:
             conversation_id: id of the conversation
             message: message to be sent
+            only_human: do not send message to bots
         """
         data = await database_sync_to_async(lambda: MessageSerializer(message).data)()
         await get_channel_layer().group_send(
-            _conversation_id_to_group_name(conversation_id),
+            _conversation_id_to_group_name(conversation_id, without_bots=only_human),
+            {"type": "send_message", "message": data},
+        )
+
+    @classmethod
+    async def send_message_to_bot(
+        cls, conversation_id: str, message: Message, bot_name_or_participant_id: str
+    ) -> None:
+        """Send a message only to a bot.
+
+        Args:
+            conversation_id: id of the conversation
+            message: message to be sent
+            bot_name_or_participant_id: bot's name or the id of the participant
+        """
+        data = await database_sync_to_async(lambda: MessageSerializer(message).data)()
+        bot = await database_sync_to_async(
+            lambda: next(
+                p
+                for p in message.conversation.participants.all()
+                if p.type == Participant.BOT
+                and bot_name_or_participant_id in [p.name, str(p.id)]
+            )
+        )()  # TODO: move filter to query
+        await get_channel_layer().group_send(
+            _conversation_id_to_group_name(conversation_id, bot.id),
             {"type": "send_message", "message": data},
         )
 
@@ -152,10 +180,8 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             conversation_id: id of the conversation
             message: message to be sent
         """
-        data = await database_sync_to_async(lambda: MessageSerializer(message).data)()
-        await get_channel_layer().group_send(
-            _conversation_id_to_group_name(conversation_id, settings.CHAT_BOT_MANAGER),
-            {"type": "send_message", "message": data},
+        await cls.send_message_to_bot(
+            conversation_id, message, settings.CHAT_BOT_MANAGER
         )
 
     @overrides

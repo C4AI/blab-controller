@@ -37,7 +37,7 @@ def _get_bot(
         return MessageSerializer.create_message(
             dict(
                 **message_data,
-                conversation_id=id,
+                conversation_id=conversation_id,
                 sender_id=bot_participant_id,
             )
         )

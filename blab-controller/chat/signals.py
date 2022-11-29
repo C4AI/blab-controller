@@ -58,17 +58,64 @@ def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
 
 
 def _message_watcher_function(instance: Message) -> None:
-    # broadcast to all users
-    async_to_sync(
-        ConversationConsumer.broadcast_message
-        if int(instance.approval_status)
-        else ConversationConsumer.send_message_to_bot_manager
-    )(instance.conversation.id, instance)
-
     # bots
     bots = all_bots()
+    manager_bot = getattr(settings, "CHAT_BOT_MANAGER", None)
+
+    # if the message is from the manager bot:
+    if (
+        instance.sender
+        and instance.sender.type == Participant.BOT
+        and instance.sender.name == manager_bot
+        and instance.text.startswith("TO:\n")
+    ):
+        for part in instance.text.strip().split("\n")[1:]:
+            # if bot uses WebSockets
+            async_to_sync(ConversationConsumer.send_message_to_bot)(
+                str(instance.conversation.id), instance.quoted_message, part
+            )
+            # if bot is internal
+            b = next(
+                p
+                for p in instance.conversation.participants.all()
+                if p.type == Participant.BOT and part in [p.name, str(p.id)]
+            )
+            try:
+                bot_spec = bots[b.name]
+            except KeyError:
+                pass
+            else:
+                func = (
+                    send_message_to_bot.delay
+                    if settings.CHAT_ENABLE_QUEUE
+                    else send_message_to_bot
+                )
+                func(bot_spec, str(b.id), instance.quoted_message.id)
+
+    # if the message was sent by a human user and there is a manager bot,
+    # send the message only to human users and the manager bot;
+    # if the message was sent by a bot, send it only to the manager bot,
+    # so that it can possibly approve it
+
+    avoid_non_manager_bots = manager_bot and instance.sent_by_human()
+
+    if avoid_non_manager_bots:
+        async_to_sync(ConversationConsumer.send_message_to_bot_manager)(
+            instance.conversation.id, instance
+        )
+    if int(instance.approval_status):
+        async_to_sync(ConversationConsumer.broadcast_message)(
+            instance.conversation.id, instance, avoid_non_manager_bots
+        )
+    else:
+        async_to_sync(ConversationConsumer.send_message_to_bot_manager)(
+            instance.conversation.id, instance
+        )
+
     for p in instance.conversation.participants.all():
         if p.type == Participant.BOT:
+            if manager_bot and avoid_non_manager_bots and p.name != manager_bot:
+                continue
             try:
                 bot_spec = bots[p.name]
             except KeyError:

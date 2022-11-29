@@ -10,7 +10,7 @@ from django.contrib.sessions.backends.db import SessionStore
 from overrides import overrides
 
 from . import blab_logger as logger
-from .models import Message
+from .models import Message, Participant
 
 
 class ConversationInfo(Protocol):
@@ -85,7 +85,7 @@ class CalculatorBot(Bot):
             result = "?"
         else:
             result = self.evaluate(message.text)
-        sleep(1)
+        sleep(0.3)
         self.conversation_info.send_function(
             {
                 "type": Message.MessageType.TEXT,
@@ -191,33 +191,57 @@ class CalcOrEchoManagerBot(Bot):
     @overrides
     def __init__(self, conversation_info: ConversationInfo):
         super().__init__(conversation_info)
-        self.participants = []
-
-    @overrides
-    def update_status(self, status: dict[str, Any]) -> None:
-        participants = status.get("participants", [])
-        if participants:
-            self.participants = {p["name"]: p for p in participants}
 
     @overrides
     def receive_message(self, message: Message) -> None:
-        if not message.sent_by_human():
+        target = str(message.m_id)
+        if message.type == Message.MessageType.SYSTEM or str(message.sender.id) == str(
+            self.conversation_info.bot_participant_id
+        ):
+            # ignore system and manager's own messages
             return
         if message.type != Message.MessageType.TEXT:
+            # ignore unsupported non-text messages
             return
-        if "Calculator" in self.participants and re.match(
-            r"^[0-9+\-*/ ()]+$", message.text
-        ):
-            result = manager_redirection("Calculator")
-        elif "ECHO" in self.participants:
-            result = manager_redirection("ECHO")
+        if not message.sent_by_human():
+            # sent by bot
+            if message.sender.name == "Calculator" and message.text == "?":
+                # probably a malformed expression that resulted in '?',
+                # so we send to upper-case ECHO instead
+                result = manager_redirection("ECHO")
+                target = str(message.quoted_message.m_id)
+            elif not int(message.approval_status):
+                # something else: just approve it
+                result = manager_approval()
+            else:
+                return
         else:
-            return
+            # sent by human
+            bots_in_conversation = set(
+                map(
+                    lambda p: p.name,
+                    filter(
+                        lambda p: p.type == Participant.BOT,
+                        message.conversation.participants.all(),
+                    ),
+                )
+            )
+            if "Calculator" in bots_in_conversation and re.match(
+                r"^[0-9+\-*/ ().]+$", message.text
+            ):
+                # looks like an expression -> send to calculator
+                result = manager_redirection("Calculator")
+            elif "ECHO" in bots_in_conversation:
+                # not an expression -> send to upper-case ECHO
+                result = manager_redirection("ECHO")
+            else:
+                # should not happen
+                return
         self.conversation_info.send_function(
             {
                 "type": Message.MessageType.TEXT,
                 "text": result,
-                "quoted_message_id": str(message.m_id),
+                "quoted_message_id": target,
             },
         )
 
