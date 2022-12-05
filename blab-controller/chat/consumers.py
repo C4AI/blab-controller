@@ -10,6 +10,7 @@ from django.conf import settings
 from overrides import overrides
 
 from . import blab_logger as logger
+from .chats import Chat
 from .models import Conversation, Message, Participant
 from .serializers import MessageSerializer, ParticipantSerializer
 
@@ -90,16 +91,11 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             # the corresponding message for bots is generated
             # as soon as the conversation is created
             log.debug("generating 'participant joined' system message for human user")
-            msg = await database_sync_to_async(Message.objects.create)(
-                type=Message.MessageType.SYSTEM,
-                text=Message.SystemEvent.JOINED,
-                additional_metadata={
-                    "participant_id": str(self.participant.id),
-                },
-                conversation_id=self.conversation_id,
-                approval_status=Message.ApprovalStatus.AUTOMATICALLY_APPROVED,
-            )
-            database_sync_to_async(msg.save)()
+            await database_sync_to_async(
+                lambda: Chat.get_chat(
+                    self.conversation_id
+                ).generate_participant_joined_system_message(self.participant.id)
+            )()
 
         # send updated list of participants to all participants
         participants = await database_sync_to_async(

@@ -126,6 +126,7 @@ class ConversationViewSet(
         )
         if not isinstance(nickname, str):
             raise ValidationError("nickname must be a string")
+
         existing = self.request.session.setdefault(
             "participation_in_conversation", {}
         ).get(conversation_id, None)
@@ -138,10 +139,7 @@ class ConversationViewSet(
         if not p:
             if not getattr(settings, "CHAT_ENABLE_ROOMS", False):
                 raise PermissionDenied()
-            p = Participant.objects.create(
-                conversation=self.get_object(), type=Participant.HUMAN, name=nickname
-            )
-            p.save()
+            p = Chat.get_chat(self.get_object().id).join(nickname)
         participant_id = str(p.id)
         log = log.bind(participant_id=participant_id)
         log.info("joined conversation")
