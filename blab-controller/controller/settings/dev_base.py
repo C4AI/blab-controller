@@ -10,53 +10,55 @@ from .base import *
 DEBUG = True
 
 INSTALLED_APPS += [
-    'chat.apps.ChatConfig',
+    "chat.apps.ChatConfig",
 ]
 
 CHAT_INSTALLED_BOTS = {
-    'ECHO': internal_bot(package='chat.bots', class_name='UpperCaseEchoBot'),
-    'Calculator': internal_bot(package='chat.bots', class_name='CalculatorBot'),
+    "ECHO": internal_bot(package="chat.bots", class_name="UpperCaseEchoBot"),
+    "Calculator": internal_bot(package="chat.bots", class_name="CalculatorBot"),
 }
 
 CHAT_LIMITS = {
-    'MAX_ATTACHMENT_SIZE': 15 * 2**20,
+    "MAX_ATTACHMENT_SIZE": 15 * 2**20,
     # maximum size of an attachment (in bytes)
-    'MAX_IMAGE_SIZE': 15 * 2**20,
+    "MAX_IMAGE_SIZE": 15 * 2**20,
     # maximum size of an image (in bytes)
-    'MAX_VIDEO_SIZE': 25 * 2**20,
+    "MAX_VIDEO_SIZE": 25 * 2**20,
     # maximum size of an image (in bytes)
-    'MAX_AUDIO_SIZE': 15 * 2**20,
+    "MAX_AUDIO_SIZE": 15 * 2**20,
     # maximum size of an audio file (in bytes)
-    'MAX_VOICE_SIZE': 15 * 2**20,
+    "MAX_VOICE_SIZE": 15 * 2**20,
     # maximum size of any voice recording file (in bytes)
 }
 
-MEDIA_ROOT = BASE_DIR / '.media'
+MEDIA_ROOT = BASE_DIR / ".media"
 
 SECRET_KEY = (
-    SECRET_KEY or 'django-insecure-ait%p*y_nubshw2pc&svhllvjpxeyss@e+i$tk+u9z70@-zy)('
+    SECRET_KEY or "django-insecure-ait%p*y_nubshw2pc&svhllvjpxeyss@e+i$tk+u9z70@-zy)("
 )
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
         },
     }
 }
 
 CORS_ORIGIN_WHITELIST = [
-    'http://localhost:3000',
+    "http://localhost:3000",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',
+    "http://localhost:3000",
 ]
+
+LOGGING["loggers"]["blab_controller"]["level"] = "DEBUG"

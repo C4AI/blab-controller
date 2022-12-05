@@ -9,6 +9,7 @@ from channels.layers import get_channel_layer
 from django.conf import settings
 from overrides import overrides
 
+from . import blab_logger as logger
 from .models import Conversation, Message, Participant
 from .serializers import MessageSerializer, ParticipantSerializer
 
@@ -46,39 +47,49 @@ class ConversationConsumer(AsyncWebsocketConsumer):
     async def connect(self) -> None:
         self.joined_at = None
         self.conversation_id = self.scope["url_route"]["kwargs"]["conversation_id"]
+
+        # get participant id from session data
         session = await sync_to_async(lambda: dict(self.scope["session"]))()
         participant_id = session.get("participation_in_conversation", {}).get(
             self.conversation_id
         )
+
+        # obtain participant and conversation instances
         self.participant = await database_sync_to_async(
             lambda: Participant.objects.get(pk=participant_id)
         )()
         self.conversation = await database_sync_to_async(
             lambda: Conversation.objects.get(pk=self.conversation_id)
         )()
+        log = logger.bind(
+            conversation_id=str(self.conversation_id),
+            participant_id=str(self.participant.id),
+        )
+
+        # create/join separate group
         self.conversation_group_name = _conversation_id_to_group_name(
             self.conversation_id
         )
         await self.channel_layer.group_add(
             self.conversation_group_name, self.channel_name
         )
+        if self.participant.type != Participant.BOT:
+            # human users share a separate channel without bots
+            g = _conversation_id_to_group_name(self.conversation_id, without_bots=True)
+        else:
+            # each bot has its own separate channel
+            g = _conversation_id_to_group_name(
+                self.conversation_id, only_participant=str(self.participant.id)
+            )
+        await self.channel_layer.group_add(g, self.channel_name)
 
-        # Bots have a specific channel for them;
-        # human users share a separate channel without bots
-        await self.channel_layer.group_add(
-            _conversation_id_to_group_name(
-                self.conversation_id,
-                str(self.participant.id)
-                if self.participant.type == Participant.BOT
-                else None,
-                self.participant.type != Participant.BOT,
-            ),
-            self.channel_name,
-        )
-
+        # accept connection
         await self.accept()
 
         if self.participant.type != Participant.BOT:
+            # the corresponding message for bots is generated
+            # as soon as the conversation is created
+            log.debug("generating 'participant joined' system message for human user")
             msg = await database_sync_to_async(Message.objects.create)(
                 type=Message.MessageType.SYSTEM,
                 text=Message.SystemEvent.JOINED,
@@ -90,6 +101,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             )
             database_sync_to_async(msg.save)()
 
+        # send updated list of participants to all participants
         participants = await database_sync_to_async(
             lambda: ParticipantSerializer(
                 self.conversation.participants.all(), many=True

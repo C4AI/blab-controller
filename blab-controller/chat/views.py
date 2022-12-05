@@ -19,6 +19,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from . import blab_logger as logger
 from .bots import all_bots
+from .chats import Chat
 from .models import Conversation, Message, Participant
 from .serializers import (
     ConversationOnListSerializer,
@@ -70,8 +71,6 @@ class ConversationViewSet(
 
     @overrides
     def perform_create(self, serializer: Serializer, **kwargs: Any) -> None:
-        log = logger
-        log.info("trying to create conversation")
         nick_key = "nickname"
         nickname = (
             self.request.data.get(nick_key, None)
@@ -83,60 +82,23 @@ class ConversationViewSet(
 
         bots_key = "bots"
         bots = self.request.data.get(bots_key, [])
-        if (manager := getattr(settings, "CHAT_BOT_MANAGER", None)) is not None:
-            bots.append(manager)
         if not isinstance(bots, list) or any(b for b in bots if not isinstance(b, str)):
             raise ValidationError("Invalid bot array:" + str(bots))
+
         available_bots = all_bots()
         missing_bots = [b for b in bots if b not in available_bots]
         if missing_bots:
             raise ValidationError("Bot(s) not found: " + str(missing_bots))
 
         conversation = serializer.save()
-        conversation_created_msg = Message(
-            conversation=conversation,
-            type=Message.MessageType.SYSTEM,
-            text=Message.SystemEvent.CREATED,
-            approval_status=Message.ApprovalStatus.AUTOMATICALLY_APPROVED,
-        )
-        conversation_created_msg.save()
-        log = log.bind(conversation_id=str(conversation.id))
 
-        participant = Participant.objects.create(
-            conversation=conversation, type=Participant.HUMAN, name=nickname
-        )
-        log = log.bind(conversation_id=str(participant.id))
+        participants = Chat.on_create_conversation(nickname, bots, conversation)
 
         self.request.session[nick_key] = nickname
         self.request.session.setdefault("participation_in_conversation", {})[
             str(conversation.id)
-        ] = str(participant.id)
+        ] = str(participants[0].id)
         self.request.session.save()
-
-        if not nickname:
-            nickname = "ANON_" + str(participant.id)
-            participant.name = nickname
-        participant.save()
-        log = log.bind(participant_name=participant.name)
-        log.info("conversation created")
-
-        for b in bots:
-            bot_participant = Participant.objects.create(
-                conversation=conversation, type=Participant.BOT, name=b
-            )
-            log.info(
-                "bot joined conversation", bot_participant_id=str(bot_participant.id)
-            )
-            bot_joined_msg = Message(
-                conversation=conversation,
-                type=Message.MessageType.SYSTEM,
-                text=Message.SystemEvent.JOINED,
-                approval_status=Message.ApprovalStatus.AUTOMATICALLY_APPROVED,
-                additional_metadata={
-                    "participant_id": str(bot_participant.id),
-                },
-            )
-            bot_joined_msg.save()
 
     @action(detail=True, methods=["post"])
     def join(self, request: Request, pk: Any | None = None) -> Response:
