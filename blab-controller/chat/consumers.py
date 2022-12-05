@@ -222,38 +222,11 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         self, text_data: str | None = None, bytes_data: bytes | None = None
     ) -> None:
         if text_data:
-            if self.participant.type == Participant.HUMAN:
-                approval_status = Message.ApprovalStatus.AUTOMATICALLY_APPROVED
-            else:
-                approval_status = Message.ApprovalStatus.NO
-
-            m = json.loads(text_data)
-            await self.create_message(
-                {
-                    **m,
-                    "conversation_id": self.conversation_id,
-                    "sender_id": self.participant.id,
-                    "approval_status": approval_status,
-                }
-            )
-
-    @classmethod
-    @database_sync_to_async
-    def create_message(cls, message_data: dict[str, Any]) -> Message | None:
-        """Create a message and save it to the database.
-
-        Args:
-            message_data: message parameters and data
-
-        Raises:
-            ValidationError: if validation fails
-
-        Returns:
-            the new instance of :cls:`Message` if it was saved successfully,
-            or ``None`` if it was not saved because it is duplicate (same
-            ``local_id`` and sender as an existing message).
-        """  # noqa: DAR402
-        return MessageSerializer.create_message(message_data)
+            await database_sync_to_async(
+                lambda: Chat.get_chat(self.participant.conversation.id).save_message(
+                    self.participant, json.loads(text_data)
+                )
+            )()
 
 
 __all__ = [ConversationConsumer]

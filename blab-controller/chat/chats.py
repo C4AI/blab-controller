@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from django.conf import settings
 
 from . import blab_logger as logger
 from .models import Conversation, Message, Participant
+from .serializers import MessageSerializer
 
 
 class Chat:
@@ -164,6 +166,33 @@ class Chat:
         self.log.debug("creating participant for user", nickname=nickname)
         participant = self._create_human_participant(nickname)
         return participant
+
+    def save_message(
+        self, participant: Participant, message_data: dict[str, Any]
+    ) -> Message:
+        """Store a message sent by a human or bot.
+
+        Args:
+            participant: the sender
+            message_data: mesesage data as a dictionary
+
+        Returns:
+            the created Message instance
+        """
+        if participant.conversation.id != self.conversation.id:
+            raise ValueError("This participant belongs to another conversation")
+        if participant.type == Participant.HUMAN or not settings.get(
+            "CHAT_BOT_MANAGER", None
+        ):
+            approval_status = Message.ApprovalStatus.AUTOMATICALLY_APPROVED
+        else:
+            approval_status = Message.ApprovalStatus.NO
+        overridden_data = {
+            "conversation_id": str(self.conversation.id),
+            "sender_id": str(participant.id),
+            "approval_status": approval_status,
+        }
+        return MessageSerializer.create_message({**message_data, **overridden_data})
 
     @classmethod
     def get_chat(cls, conversation_id: str | UUID) -> Chat | None:
