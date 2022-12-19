@@ -67,30 +67,38 @@ def _message_watcher_function(instance: Message) -> None:
         instance.sender
         and instance.sender.type == Participant.BOT
         and instance.sender.name == manager_bot
-        and instance.text.startswith("TO:\n")
     ):
-        for part in instance.text.strip().split("\n")[1:]:
-            # if bot uses WebSockets
-            async_to_sync(ConversationConsumer.send_message_to_bot)(
-                instance.quoted_message, part
-            )
-            # if bot is internal
-            b = next(
-                p
-                for p in instance.conversation.participants.all()
-                if p.type == Participant.BOT and part in [p.name, str(p.id)]
-            )
-            try:
-                bot_spec = bots[b.name]
-            except KeyError:
-                pass
-            else:
-                func = (
-                    send_message_to_bot.delay
-                    if settings.CHAT_ENABLE_QUEUE
-                    else send_message_to_bot
+        import json
+
+        try:
+            j = json.loads(instance.text)
+        except json.decoder.JSONDecodeError:
+            j = None
+        if not isinstance(j, dict):
+            j = {}
+        if j.get("action") == "redirect":
+            for part in j.get("bots", []):
+                # if bot uses WebSockets
+                async_to_sync(ConversationConsumer.send_message_to_bot)(
+                    instance.quoted_message, part
                 )
-                func(bot_spec, str(b.id), instance.quoted_message.id)
+                # if bot is internal
+                b = next(
+                    p
+                    for p in instance.conversation.participants.all()
+                    if p.type == Participant.BOT and part in [p.name, str(p.id)]
+                )
+                try:
+                    bot_spec = bots[b.name]
+                except KeyError:
+                    pass
+                else:
+                    func = (
+                        send_message_to_bot.delay
+                        if settings.CHAT_ENABLE_QUEUE
+                        else send_message_to_bot
+                    )
+                    func(bot_spec, str(b.id), instance.quoted_message.id)
 
     # if the message was sent by a human user and there is a manager bot,
     # send the message only to human users and the manager bot;

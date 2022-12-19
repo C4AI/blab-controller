@@ -205,4 +205,6 @@ class Chat:
             a Chat instance if it exists for the given conversation id,
             of None if it does not exist
         """
-        return cls._all_chats.get(str(conversation_id))
+        return cls._all_chats.get(str(conversation_id)) or Chat(
+            Conversation.objects.get(id=conversation_id)
+        )

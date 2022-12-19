@@ -274,8 +274,17 @@ class Message(models.Model):
             self.sender
             and self.sender.type == Participant.BOT
             and self.sender.name == getattr(settings, "CHAT_BOT_MANAGER", None)
+            and self.text
         ):
-            if self.text == "OK" and self.quoted_message:
+            import json
+
+            try:
+                j = json.loads(self.text)
+            except json.decoder.JSONDecodeError:
+                j = None
+            if not isinstance(j, dict):
+                raise ValidationError("invalid message from bot manager")
+            if j.get("action", "") == "approve" and self.quoted_message:
                 self.quoted_message.approval_status = (
                     Message.ApprovalStatus.APPROVED_BY_BOT_MANAGER
                 )

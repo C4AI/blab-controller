@@ -142,21 +142,18 @@ def manager_redirection(*bot_names_or_participants_ids: str) -> str:
         bot_names_or_participants_ids: the names or ids of the bots
 
     Returns:
-        the string "TO:\n" followed by a '\n'-separated list of bots that will
-        receive the message
+        a JSON-serialised redirection command
     """
-    if not bot_names_or_participants_ids:
-        return ""
-    return "TO:\n" + "\n".join(bot_names_or_participants_ids)
+    return json.dumps(dict(action="redirect", bots=bot_names_or_participants_ids))
 
 
 def manager_approval() -> str:
     """Return a string that indicates that a message has been appproved.
 
     Returns:
-        the string "OK"
+        a JSON-serialised approval command
     """
-    return "OK"
+    return json.dumps(dict(action="approve"))
 
 
 class TransparentManagerBot(Bot):
