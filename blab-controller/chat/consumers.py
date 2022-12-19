@@ -1,12 +1,14 @@
 """Contains Websocket consumers."""
 import json
 from typing import Any
+from uuid import UUID
 
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
 from django.conf import settings
+from django.db.models import Q
 from overrides import overrides
 
 from . import blab_logger as logger
@@ -165,14 +167,18 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             bot_name_or_participant_id: bot's name or the id of the participant
         """
         data = await database_sync_to_async(lambda: MessageSerializer(message).data)()
+        q = Q(name=bot_name_or_participant_id)
+        try:
+            u = UUID(bot_name_or_participant_id)
+        except ValueError:
+            pass
+        else:
+            q |= Q(id=u)
         bot = await database_sync_to_async(
-            lambda: next(
-                p
-                for p in message.conversation.participants.all()
-                if p.type == Participant.BOT
-                and bot_name_or_participant_id in [p.name, str(p.id)]
-            )
-        )()  # TODO: move filter to query
+            lambda: message.conversation.participants.filter(type=Participant.BOT)
+            .filter(q)
+            .first()
+        )()
         await get_channel_layer().group_send(
             _conversation_id_to_group_name(conversation_id, bot.id),
             {"type": "send_message", "message": data},
