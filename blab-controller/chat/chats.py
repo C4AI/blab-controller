@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 from uuid import UUID
 
 from django.conf import settings
+from django.db.models import Q
 
 from . import blab_logger as logger
+from .bots import all_bots
 from .models import Conversation, Message, Participant
 from .serializers import MessageSerializer
 
@@ -181,12 +184,101 @@ class Chat:
         """
         if participant.conversation.id != self.conversation.id:
             raise ValueError("This participant belongs to another conversation")
-        if participant.type == Participant.HUMAN or not settings.get(
-            "CHAT_BOT_MANAGER", None
-        ):
+
+        # importing here to avoid circular imports
+
+        from .consumers import ConversationConsumer
+        from .tasks import send_message_to_bot
+
+        manager = getattr(settings, "CHAT_BOT_MANAGER", None)
+        if participant.type == Participant.HUMAN or not manager:
             approval_status = Message.ApprovalStatus.AUTOMATICALLY_APPROVED
         else:
             approval_status = Message.ApprovalStatus.NO
+
+        if participant.type == Participant.BOT and participant.name == manager:
+            text = message_data.get("text")
+            try:
+                j = json.loads(text)
+            except json.decoder.JSONDecodeError:
+                j = None
+            if not isinstance(j, dict):
+                self.log.warn("ignoring malformed message from manager bot", text=text)
+                j = {}
+            action = j.get("action", "")
+            quoted_message_id = message_data.get("quoted_message_id", None)
+            quoted_message = None
+            if quoted_message_id:
+                try:
+                    quoted_message = Message.objects.get(m_id=quoted_message_id)
+                except Message.DoesNotExist:
+                    quoted_message = None
+            if quoted_message.conversation.id != participant.conversation.id:
+                quoted_message = None
+            match action:
+                case "approve":
+
+                    if not quoted_message:
+                        self.log.warn(
+                            "manager bot tried to approve a non-existent message",
+                            approved_message_id=quoted_message_id,
+                        )
+                    else:
+                        self.log.info(
+                            "manager bot approved message",
+                            approved_message_id=quoted_message_id,
+                        )
+                        quoted_message.approval_status = (
+                            Message.ApprovalStatus.APPROVED_BY_BOT_MANAGER
+                        )
+                        quoted_message.save()
+                case "redirect":
+                    if not quoted_message:
+                        self.log.warn(
+                            "manager bot tried to redirect a non-existent message",
+                            redirected_message_id=quoted_message_id,
+                        )
+                    else:
+                        self.log.info(
+                            "manager bot redirected message",
+                            redirected_message_id=quoted_message_id,
+                            bots=j.get("bots", []),
+                        )
+                        bots = all_bots()
+                        for part in j.get("bots", []):
+                            # if bot uses WebSockets
+                            ConversationConsumer.send_message_to_bot(
+                                quoted_message, part
+                            )
+                            # if bot is internal
+                            q = Q(name=part)
+                            try:
+                                u = UUID(part)
+                            except ValueError:
+                                pass
+                            else:
+                                q |= Q(id=u)
+                            b = (
+                                quoted_message.conversation.participants.filter(q)
+                                .filter(type=Participant.BOT)
+                                .first()
+                            )
+                            try:
+                                bot_spec = bots[b.name]
+                            except KeyError:
+                                pass
+                            else:
+                                func = (
+                                    send_message_to_bot.delay
+                                    if settings.CHAT_ENABLE_QUEUE
+                                    else send_message_to_bot
+                                )
+                                func(bot_spec, str(b.id), quoted_message.id)
+                case _:
+                    self.log.warn(
+                        "ignoring unknown action from manager bot", action=action
+                    )
+
         overridden_data = {
             "conversation_id": str(self.conversation.id),
             "sender_id": str(participant.id),

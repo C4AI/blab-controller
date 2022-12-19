@@ -6,8 +6,8 @@ from typing import Any, Callable, NamedTuple, cast
 from celery import shared_task
 
 from .bots import Bot
-from .models import Message
-from .serializers import MessageSerializer
+from .chats import Chat
+from .models import Message, Participant
 
 # noinspection PyUnresolvedReferences
 from .signals import *  # noqa: F40
@@ -34,12 +34,8 @@ def _get_bot(
     cls = cast(type, cls)
 
     def send(message_data: dict[str, Any]) -> Message:
-        return MessageSerializer.create_message(
-            dict(
-                **message_data,
-                conversation_id=conversation_id,
-                sender_id=bot_participant_id,
-            )
+        return Chat.get_chat(conversation_id).save_message(
+            Participant.objects.get(id=bot_participant_id), message_data
         )
 
     conv_info = ConversationInfo(conversation_id, bot_participant_id, send)

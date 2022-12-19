@@ -2,9 +2,7 @@
 
 import shlex
 import uuid
-from typing import Any
 
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as gettext
@@ -266,30 +264,6 @@ class Message(models.Model):
                 raise ValidationError("non-system message must have a sender")
             if sender not in self.conversation.participants.all():
                 raise ValidationError("sender is a participant in the conversation")
-
-    @overrides
-    def save(self, *args: Any, **kwargs: Any) -> Any:
-        self.full_clean()
-        if (
-            self.sender
-            and self.sender.type == Participant.BOT
-            and self.sender.name == getattr(settings, "CHAT_BOT_MANAGER", None)
-            and self.text
-        ):
-            import json
-
-            try:
-                j = json.loads(self.text)
-            except json.decoder.JSONDecodeError:
-                j = None
-            if not isinstance(j, dict):
-                raise ValidationError("invalid message from bot manager")
-            if j.get("action", "") == "approve" and self.quoted_message:
-                self.quoted_message.approval_status = (
-                    Message.ApprovalStatus.APPROVED_BY_BOT_MANAGER
-                )
-                self.quoted_message.save()
-        super().save(*args, **kwargs)
 
     def sent_by_human(self) -> bool:
         """Check if this message was sent by a person.
