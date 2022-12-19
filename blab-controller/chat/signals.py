@@ -75,24 +75,22 @@ def _message_watcher_function(instance: Message) -> None:
         async_to_sync(ConversationConsumer.broadcast_message)(
             instance, avoid_non_manager_bots
         )
-    else:
-        async_to_sync(ConversationConsumer.send_message_to_bot_manager)(instance)
 
     for p in instance.conversation.participants.all():
-        if p.type == Participant.BOT:
-            if manager_bot and avoid_non_manager_bots and p.name != manager_bot:
-                continue
-            try:
-                bot_spec = bots[p.name]
-            except KeyError:
-                pass
-            else:
-                func = (
-                    send_message_to_bot.delay
-                    if settings.CHAT_ENABLE_QUEUE
-                    else send_message_to_bot
-                )
-                func(bot_spec, str(p.id), instance.id)
+        if p.type != Participant.BOT:
+            continue
+        if manager_bot and avoid_non_manager_bots and p.name != manager_bot:
+            continue
+        try:
+            bot_spec = bots[p.name]
+        except KeyError:
+            continue
+        func = (
+            send_message_to_bot.delay
+            if settings.CHAT_ENABLE_QUEUE
+            else send_message_to_bot
+        )
+        func(bot_spec, str(p.id), instance.id)
 
 
 __all__ = []
