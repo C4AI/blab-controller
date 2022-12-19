@@ -58,12 +58,12 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         )
 
         # obtain participant and conversation instances
-        self.participant = await database_sync_to_async(
-            lambda: Participant.objects.get(pk=participant_id)
-        )()
-        self.conversation = await database_sync_to_async(
-            lambda: Conversation.objects.get(pk=self.conversation_id)
-        )()
+        self.participant = await database_sync_to_async(Participant.objects.get)(
+            pk=participant_id
+        )
+        self.conversation = await database_sync_to_async(Conversation.objects.get)(
+            pk=self.conversation_id
+        )
         log = logger.bind(
             conversation_id=str(self.conversation_id),
             participant_id=str(self.participant.id),
@@ -140,16 +140,18 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
     @classmethod
     async def broadcast_message(
-        cls, conversation_id: str, message: Message, only_human: bool = False
+        cls, message: Message, only_human: bool = False
     ) -> None:
         """Send a message to all participants, possibly excluding bots.
 
         Args:
-            conversation_id: id of the conversation
             message: message to be sent
             only_human: do not send message to bots
         """
         data = await database_sync_to_async(lambda: MessageSerializer(message).data)()
+        conversation_id = await database_sync_to_async(
+            lambda: message.conversation.id
+        )()
         await get_channel_layer().group_send(
             _conversation_id_to_group_name(conversation_id, without_bots=only_human),
             {"type": "send_message", "message": data},
@@ -157,12 +159,11 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
     @classmethod
     async def send_message_to_bot(
-        cls, conversation_id: str, message: Message, bot_name_or_participant_id: str
+        cls, message: Message, bot_name_or_participant_id: str
     ) -> None:
         """Send a message only to a bot.
 
         Args:
-            conversation_id: id of the conversation
             message: message to be sent
             bot_name_or_participant_id: bot's name or the id of the participant
         """
@@ -180,23 +181,18 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             .first()
         )()
         await get_channel_layer().group_send(
-            _conversation_id_to_group_name(conversation_id, bot.id),
+            _conversation_id_to_group_name(message.conversation.id, bot.id),
             {"type": "send_message", "message": data},
         )
 
     @classmethod
-    async def send_message_to_bot_manager(
-        cls, conversation_id: str, message: Message
-    ) -> None:
+    async def send_message_to_bot_manager(cls, message: Message) -> None:
         """Send a message to the bot manager.
 
         Args:
-            conversation_id: id of the conversation
             message: message to be sent
         """
-        await cls.send_message_to_bot(
-            conversation_id, message, settings.CHAT_BOT_MANAGER
-        )
+        await cls.send_message_to_bot(message, settings.CHAT_BOT_MANAGER)
 
     @overrides
     async def disconnect(self, code: int) -> None:
@@ -229,7 +225,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
     ) -> None:
         if text_data:
             await database_sync_to_async(
-                lambda: Chat.get_chat(self.participant.conversation.id).save_message(
+                lambda: Chat.get_chat(self.conversation.id).save_message(
                     self.participant, json.loads(text_data)
                 )
             )()

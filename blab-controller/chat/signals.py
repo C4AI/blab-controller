@@ -72,7 +72,7 @@ def _message_watcher_function(instance: Message) -> None:
         for part in instance.text.strip().split("\n")[1:]:
             # if bot uses WebSockets
             async_to_sync(ConversationConsumer.send_message_to_bot)(
-                str(instance.conversation.id), instance.quoted_message, part
+                instance.quoted_message, part
             )
             # if bot is internal
             b = next(
@@ -100,17 +100,13 @@ def _message_watcher_function(instance: Message) -> None:
     avoid_non_manager_bots = manager_bot and instance.sent_by_human()
 
     if avoid_non_manager_bots:
-        async_to_sync(ConversationConsumer.send_message_to_bot_manager)(
-            instance.conversation.id, instance
-        )
+        async_to_sync(ConversationConsumer.send_message_to_bot_manager)(instance)
     if int(instance.approval_status):
         async_to_sync(ConversationConsumer.broadcast_message)(
-            instance.conversation.id, instance, avoid_non_manager_bots
+            instance, avoid_non_manager_bots
         )
     else:
-        async_to_sync(ConversationConsumer.send_message_to_bot_manager)(
-            instance.conversation.id, instance
-        )
+        async_to_sync(ConversationConsumer.send_message_to_bot_manager)(instance)
 
     for p in instance.conversation.participants.all():
         if p.type == Participant.BOT:
