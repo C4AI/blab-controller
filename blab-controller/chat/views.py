@@ -202,7 +202,9 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewS
         conversation_id = str(self.kwargs["conversation_id"])
         if not self._get_participant():
             raise PermissionDenied()
-        q = Message.objects.filter(conversation_id=conversation_id)
+        q = Message.objects.filter(conversation_id=conversation_id).filter(
+            approval_status__gt=0
+        )
         now = datetime.now(timezone.utc)
         if (until_str := self.request.query_params.get("until")) is not None:
             try:

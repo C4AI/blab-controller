@@ -226,13 +226,15 @@ class Chat:
             approval_status = Message.ApprovalStatus.NO
 
         if participant.type == Participant.BOT and participant.name == manager:
-            text = message_data.get("text")
+            command = message_data.get("command", "{}")
             try:
-                j = json.loads(text)
+                j = json.loads(command)
             except json.decoder.JSONDecodeError:
                 j = None
             if not isinstance(j, dict):
-                self.log.warn("ignoring malformed message from manager bot", text=text)
+                self.log.warn(
+                    "ignoring malformed message from manager bot", command=command
+                )
                 j = {}
             action = j.get("action", "")
             quoted_message_id = message_data.get("quoted_message_id", None)
@@ -299,9 +301,12 @@ class Chat:
                             )
                             func(str(b.id), quoted_message.id)
                 case _:
-                    self.log.warn(
-                        "ignoring unknown action from manager bot", action=action
-                    )
+                    if action:
+                        self.log.warn(
+                            "ignoring unknown action from manager bot", action=action
+                        )
+        else:
+            message_data.pop("command", None)
 
         overridden_data = {
             "conversation_id": str(self.conversation.id),

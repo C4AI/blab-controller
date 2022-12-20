@@ -176,7 +176,7 @@ class TransparentManagerBot(Bot):
         self.conversation_info.send_function(
             {
                 "type": Message.MessageType.TEXT,
-                "text": result,
+                "command": result,
                 "quoted_message_id": str(message.m_id),
             },
         )
@@ -237,10 +237,84 @@ class CalcOrEchoManagerBot(Bot):
         self.conversation_info.send_function(
             {
                 "type": Message.MessageType.TEXT,
-                "text": result,
+                "command": result,
                 "quoted_message_id": target,
             },
         )
+
+
+class PreSelectManagerBot(Bot):
+    """Bot manager that lets the user choose a bot as soon as a conversation starts."""
+
+    bot_in_conversation = {}
+
+    @overrides
+    def __init__(
+        self,
+        conversation_info: ConversationInfo,
+        *,
+        bots: list[str],
+        greeting: str,
+        after_choice: str,
+        exit_word: str
+    ):
+        super().__init__(conversation_info)
+        self.greeting = greeting
+        self.after_choice = after_choice
+        self.exit_word = exit_word
+        self.bots = bots
+
+    @overrides
+    def receive_message(self, message: Message) -> None:
+        result_msg = None
+        greeting = {"text": self.greeting, "options": [*self.bots]}
+        if message.type == Message.MessageType.SYSTEM:
+            if message.text == Message.SystemEvent.JOINED and str(
+                message.additional_metadata["participant_id"]
+            ) == str(self.conversation_info.bot_participant_id):
+                # when conversation is created, send greeting message
+                result_msg = greeting
+            # ignore other system messages
+        elif str(message.sender.id) == str(self.conversation_info.bot_participant_id):
+            if message.text and not int(message.approval_status):
+                # approve manager's own messages
+                result_msg = {"command": manager_approval()}
+            # ignore manager's commands
+        elif not message.sent_by_human():
+            # approve messages sent by bots
+            if not int(message.approval_status):
+                result_msg = {"command": manager_approval()}
+        else:  # sent by human
+            current_bot = PreSelectManagerBot.bot_in_conversation.get(
+                self.conversation_info.conversation_id, None
+            )
+            if not current_bot:  # bot is still unset
+                if message.text in self.bots:
+                    PreSelectManagerBot.bot_in_conversation[
+                        self.conversation_info.conversation_id
+                    ] = message.text
+                    result_msg = {"text": self.after_choice}
+
+                else:  # invalid answer, re-send greeting
+                    result_msg = greeting
+            else:
+                if (
+                    message.text or ""
+                ).upper().strip() == self.exit_word.upper().strip():
+                    PreSelectManagerBot.bot_in_conversation.pop(
+                        self.conversation_info.conversation_id, None
+                    )
+                    result_msg = greeting
+                else:
+                    result_msg = {"command": manager_redirection(current_bot)}
+        if result_msg:
+            self.conversation_info.send_function(
+                {
+                    "type": Message.MessageType.TEXT,
+                    "quoted_message_id": str(message.m_id),
+                    **result_msg,
+                }
+            )
 
 
 class WebSocketExternalBot(Bot):

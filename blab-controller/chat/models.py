@@ -250,6 +250,9 @@ class Message(models.Model):
     to identify each message when it is returned by the server.
     """
 
+    command = models.CharField(gettext("command"), max_length=1000, blank=True)
+    """A JSON-encoded command sent by manager bots."""
+
     @overrides
     def clean(self) -> None:
         super().clean()
