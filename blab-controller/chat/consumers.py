@@ -109,16 +109,16 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             self.conversation_id, {"participants": participants}
         )
 
-    async def send_message(self, event: dict[str, Any]) -> None:
-        """Send message to this participant.
+    async def deliver_message(self, event: dict[str, Any]) -> None:
+        """Deliver message to this participant.
 
         Args:
             event: message represented as a dictionary
         """
         await self.send(text_data=json.dumps({"message": event["message"]}))
 
-    async def send_state(self, event: dict[str, Any]) -> None:
-        """Send state data to this participant.
+    async def deliver_state(self, event: dict[str, Any]) -> None:
+        """Deliver state data to this participant.
 
         Args:
             event: state represented as a dictionary
@@ -127,7 +127,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
     @classmethod
     async def broadcast_state(cls, conversation_id: str, state: dict[str, Any]) -> None:
-        """Send state data to all participants.
+        """Deliver state data to all participants.
 
         Args:
             conversation_id: id of the conversation
@@ -135,7 +135,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         """
         await get_channel_layer().group_send(
             _conversation_id_to_group_name(conversation_id),
-            {"type": "send_state", "state": state},
+            {"type": "deliver_state", "state": state},
         )
 
     @classmethod
@@ -154,17 +154,17 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         )()
         await get_channel_layer().group_send(
             _conversation_id_to_group_name(conversation_id, without_bots=only_human),
-            {"type": "send_message", "message": data},
+            {"type": "deliver_message", "message": data},
         )
 
     @classmethod
-    async def send_message_to_bot(
+    async def deliver_message_to_bot(
         cls, message: Message, bot_name_or_participant_id: str
     ) -> None:
-        """Send a message only to a bot.
+        """Deliver a message only to a bot.
 
         Args:
-            message: message to be sent
+            message: message to be delivered
             bot_name_or_participant_id: bot's name or the id of the participant
         """
         data = await database_sync_to_async(lambda: MessageSerializer(message).data)()
@@ -182,17 +182,17 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         )()
         await get_channel_layer().group_send(
             _conversation_id_to_group_name(message.conversation.id, bot.id),
-            {"type": "send_message", "message": data},
+            {"type": "deliver_message", "message": data},
         )
 
     @classmethod
-    async def send_message_to_bot_manager(cls, message: Message) -> None:
-        """Send a message to the bot manager.
+    async def deliver_message_to_bot_manager(cls, message: Message) -> None:
+        """Deliver a message to the bot manager.
 
         Args:
             message: message to be sent
         """
-        await cls.send_message_to_bot(message, settings.CHAT_BOT_MANAGER)
+        await cls.deliver_message_to_bot(message, settings.CHAT_BOT_MANAGER)
 
     @overrides
     async def disconnect(self, code: int) -> None:

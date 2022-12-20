@@ -8,11 +8,10 @@ from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from .bots import all_bots
 from .consumers import ConversationConsumer
 from .models import Message, Participant
 from .serializers import ParticipantSerializer
-from .tasks import send_message_to_bot, send_status_to_bot
+from .tasks import deliver_message_to_bot, deliver_status_to_bot
 
 
 # noinspection PyUnusedLocal
@@ -33,19 +32,14 @@ def _participant_watcher(sender: Any, instance: Participant, **kwargs: Any) -> N
     )
 
     # for internal bots that don't use WebSockets:
-    bots = all_bots()
     for p in instance.conversation.participants.all():
         if p.type == Participant.BOT:
-            try:
-                bot_spec = bots[p.name]
-            except KeyError:
-                continue
             func = (
-                send_status_to_bot.delay
+                deliver_status_to_bot.delay
                 if settings.CHAT_ENABLE_QUEUE
-                else send_status_to_bot
+                else deliver_status_to_bot
             )
-            func(bot_spec, participants, str(p.id), instance.conversation.id)
+            func(participants, str(p.id))
 
 
 # noinspection PyUnusedLocal
@@ -58,8 +52,6 @@ def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
 
 
 def _message_watcher_function(instance: Message) -> None:
-    # bots
-    bots = all_bots()
     manager_bot = getattr(settings, "CHAT_BOT_MANAGER", None)
 
     # if the message was sent by a human user and there is a manager bot,
@@ -70,7 +62,7 @@ def _message_watcher_function(instance: Message) -> None:
     avoid_non_manager_bots = manager_bot and instance.sent_by_human()
 
     if avoid_non_manager_bots:
-        async_to_sync(ConversationConsumer.send_message_to_bot_manager)(instance)
+        async_to_sync(ConversationConsumer.deliver_message_to_bot_manager)(instance)
     if int(instance.approval_status):
         async_to_sync(ConversationConsumer.broadcast_message)(
             instance, avoid_non_manager_bots
@@ -81,16 +73,12 @@ def _message_watcher_function(instance: Message) -> None:
             continue
         if manager_bot and avoid_non_manager_bots and p.name != manager_bot:
             continue
-        try:
-            bot_spec = bots[p.name]
-        except KeyError:
-            continue
         func = (
-            send_message_to_bot.delay
+            deliver_message_to_bot.delay
             if settings.CHAT_ENABLE_QUEUE
-            else send_message_to_bot
+            else deliver_message_to_bot
         )
-        func(bot_spec, str(p.id), instance.id)
+        func(str(p.id), instance.id)
 
 
 __all__ = []

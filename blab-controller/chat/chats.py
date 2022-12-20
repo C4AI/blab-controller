@@ -3,16 +3,45 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from importlib import import_module
+from typing import Any, Callable, NamedTuple, cast
 from uuid import UUID
 
 from django.conf import settings
 from django.db.models import Q
 
 from . import blab_logger as logger
-from .bots import all_bots
+from .bots import Bot, all_bots
 from .models import Conversation, Message, Participant
 from .serializers import MessageSerializer
+
+
+def _get_bot(
+    bot_spec: tuple[str, str, list[Any], dict[Any, Any]],
+    bot_participant_id: str,
+    conversation_id: str,
+) -> Bot:
+    (module_name, cls_name, args, kwargs) = bot_spec
+    m = import_module(module_name)
+    cls = m
+    for c in cls_name.split("."):
+        cls = getattr(cls, c)
+    cls = cast(type, cls)
+
+    def send(message_data: dict[str, Any]) -> Message:
+        return Chat.get_chat(conversation_id).save_message(
+            Participant.objects.get(id=bot_participant_id), message_data
+        )
+
+    class ConversationInfo(NamedTuple):
+        """Contains basic conversation information available to bots."""
+
+        conversation_id: str
+        bot_participant_id: str
+        send_function: Callable[[dict[str, Any]], Message]
+
+    conv_info = ConversationInfo(conversation_id, bot_participant_id, send)
+    return cls(conv_info, *bot_spec[2], **bot_spec[3])
 
 
 class Chat:
@@ -188,7 +217,7 @@ class Chat:
         # importing here to avoid circular imports
 
         from .consumers import ConversationConsumer
-        from .tasks import send_message_to_bot
+        from .tasks import deliver_message_to_bot
 
         manager = getattr(settings, "CHAT_BOT_MANAGER", None)
         if participant.type == Participant.HUMAN or not manager:
@@ -244,10 +273,9 @@ class Chat:
                             redirected_message_id=quoted_message_id,
                             bots=j.get("bots", []),
                         )
-                        bots = all_bots()
                         for part in j.get("bots", []):
                             # if bot uses WebSockets
-                            ConversationConsumer.send_message_to_bot(
+                            ConversationConsumer.deliver_message_to_bot(
                                 quoted_message, part
                             )
                             # if bot is internal
@@ -263,17 +291,13 @@ class Chat:
                                 .filter(type=Participant.BOT)
                                 .first()
                             )
-                            try:
-                                bot_spec = bots[b.name]
-                            except KeyError:
-                                pass
-                            else:
-                                func = (
-                                    send_message_to_bot.delay
-                                    if settings.CHAT_ENABLE_QUEUE
-                                    else send_message_to_bot
-                                )
-                                func(bot_spec, str(b.id), quoted_message.id)
+
+                            func = (
+                                deliver_message_to_bot.delay
+                                if settings.CHAT_ENABLE_QUEUE
+                                else deliver_message_to_bot
+                            )
+                            func(str(b.id), quoted_message.id)
                 case _:
                     self.log.warn(
                         "ignoring unknown action from manager bot", action=action
@@ -285,6 +309,36 @@ class Chat:
             "approval_status": approval_status,
         }
         return MessageSerializer.create_message({**message_data, **overridden_data})
+
+    def deliver_message_to_bot(self, message: Message, bot: Participant) -> None:
+        """Deliver a message only to the specified bot.
+
+        Args:
+            message: the message to be delivered
+            bot: the bot which will receive the message
+        """
+        if bot.conversation.id != self.conversation.id:
+            raise ValueError("Participant is not in the conversation")
+        if message.conversation.id != self.conversation.id:
+            raise ValueError("Message is not in the conversation")
+        if bot.type != Participant.BOT:
+            raise ValueError("Participant is not a bot")
+        bot = _get_bot(all_bots()[bot.name], bot.id, bot.conversation.id)
+        bot.receive_message(message)
+
+    def deliver_status_to_bot(self, status: dict[str, Any], bot: Participant) -> None:
+        """Deliver status only to the specified bot.
+
+        Args:
+            status: the status information to be delivered
+            bot: the bot which will receive the message
+        """
+        if bot.conversation.id != self.conversation.id:
+            raise ValueError("Participant is not in the conversation")
+        if bot.type != Participant.BOT:
+            raise ValueError("Participant is not a bot")
+        bot = _get_bot(all_bots()[bot.name], bot.id, bot.conversation.id)
+        bot.update_status(status)
 
     @classmethod
     def get_chat(cls, conversation_id: str | UUID) -> Chat | None:
