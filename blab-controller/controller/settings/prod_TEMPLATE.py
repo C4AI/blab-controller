@@ -16,15 +16,15 @@ from .base import *
 ##########################################################################
 
 INSTALLED_APPS += [
-    'chat.apps.ChatConfig',
+    "chat.apps.ChatConfig",
 ]
 """Additional installed apps."""
 
 ##########################################################################
 
 CHAT_INSTALLED_BOTS = {
-    'ECHO': ('chat.bots', 'UpperCaseEchoBot', [], {}),
-    'Calculator': ('chat.bots', 'CalculatorBot', [], {}),
+    "ECHO": ("chat.bots", "UpperCaseEchoBot", [], {}),
+    "Calculator": ("chat.bots", "CalculatorBot", [], {}),
 }
 """Installed bots.
 
@@ -39,32 +39,31 @@ Each key is the bot name, and the value is a 4-tuple
 # Setting any of the following values to 0 disables that type of file.
 
 CHAT_LIMITS = {
-    'MAX_ATTACHMENT_SIZE': 15 * 2**20,
+    "MAX_ATTACHMENT_SIZE": 15 * 2**20,
     # maximum size of an attachment (in bytes)
-    'MAX_IMAGE_SIZE': 15 * 2**20,
+    "MAX_IMAGE_SIZE": 15 * 2**20,
     # maximum size of an image (in bytes)
-    'MAX_VIDEO_SIZE': 15 * 2**20,
+    "MAX_VIDEO_SIZE": 15 * 2**20,
     # maximum size of an image (in bytes)
-    'MAX_AUDIO_SIZE': 15 * 2**20,
+    "MAX_AUDIO_SIZE": 15 * 2**20,
     # maximum size of an audio file (in bytes)
-    'MAX_VOICE_SIZE': 15 * 2**20,
+    "MAX_VOICE_SIZE": 15 * 2**20,
     # maximum size of any voice recording file (in bytes)
 }
 
 CHAT_LIMITS = {k: 0 for k in CHAT_LIMITS}
-# Disabling message attachments for now, because we haven't implemented
-# file sending yet
+# Disabling message attachments
 
 ##########################################################################
 
-MEDIA_ROOT = BASE_DIR / '.media'
+MEDIA_ROOT = BASE_DIR / ".media"
 """Path where files uploaded by users will be saved."""
 
 ##########################################################################
 
 ALLOWED_HOSTS = [
-    'localhost',  # local connections should be allowed
-    '127.0.0.1',  # local connections should be allowed
+    "localhost",  # local connections should be allowed
+    "127.0.0.1",  # local connections should be allowed
     # 'example.com',       # domain
     # 'www.example.com',   # subdomain
     # '.example.com',      # all subdomains
@@ -74,7 +73,7 @@ that this Django site can serve."""
 
 ##########################################################################
 
-_db_engine = ''
+_db_engine = ""
 """Database engine.
 
 Should be one of:
@@ -87,13 +86,13 @@ Should be one of:
 ##########################################################################
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.' + _db_engine.lower(),
-        'NAME': '',
-        'USER': '',
-        'PASSWORD': '',
-        'HOST': '',
-        'PORT': '',
+    "default": {
+        "ENGINE": "django.db.backends." + _db_engine.lower(),
+        "NAME": "",
+        "USER": "",
+        "PASSWORD": "",
+        "HOST": "",
+        "PORT": "",
     }
 }
 """Database settings.
@@ -127,10 +126,10 @@ CSRF_TRUSTED_ORIGINS: list[str] = [
 ##########################################################################
 
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
         },
     }
 }
@@ -184,4 +183,4 @@ if _ssl:
     SECURE_BROWSER_XSS_FILTER = True
 
 if not SECRET_KEY:
-    raise ImproperlyConfigured('Environment variable SECRET_KEY not set or empty')
+    raise ImproperlyConfigured("Environment variable SECRET_KEY not set or empty")

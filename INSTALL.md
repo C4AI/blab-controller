@@ -5,7 +5,7 @@ for example, this file is at */somewhere/blab-controller/INSTALL.md*, and the ma
 */somewhere/blab-controller/blab-controller/manage.py*. Non-absolute directories will be relative to
 */somewhere/blab-controller*.
 
-Some of the steps only apply to specific environment types (development, production, test) and
+Some steps only apply to specific environment types (development, production, test) and
 should be skipped in other environments.
 
 - Install
@@ -22,7 +22,7 @@ should be skipped in other environments.
 - Install [Poetry](https://python-poetry.org/) (version 1.2 or newer):
 
   ```shell
-  curl -sSL https://install.python-poetry.org | python3 - --preview
+  curl -sSL https://install.python-poetry.org | python3 -
   ```
   If *~/.local/bin* is not in `PATH`, add it as suggested by the output of Poetry installer.
 
@@ -33,7 +33,7 @@ should be skipped in other environments.
   POETRY_VIRTUALENVS_IN_PROJECT=true poetry install
   ```
 
-  NOTE: If errors or prompts related to keyring passwords are shown,
+  **NOTE:** If errors or prompts related to keyring passwords or DBus are shown,
   run `export PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring` in the same terminal session
   and try again.
 
