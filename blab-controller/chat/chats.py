@@ -18,7 +18,7 @@ from .serializers import MessageSerializer
 
 def _get_bot(
     bot_spec: tuple[str, str, list[Any], dict[Any, Any]],
-    bot_participant_id: str,
+    bot_participant_id: str | UUID,
     conversation_id: str,
 ) -> Bot:
     (module_name, cls_name, args, kwargs) = bot_spec
@@ -40,7 +40,7 @@ def _get_bot(
         bot_participant_id: str
         send_function: Callable[[dict[str, Any]], Message]
 
-    conv_info = ConversationInfo(conversation_id, bot_participant_id, send)
+    conv_info = ConversationInfo(conversation_id, str(bot_participant_id), send)
     return cls(conv_info, *bot_spec[2], **bot_spec[3])
 
 
