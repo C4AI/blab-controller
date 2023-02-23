@@ -239,6 +239,8 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewS
 
 # noinspection PyAbstractClass
 class _Identity(BaseSerializer):
+    fields = {}
+
     @overrides
     def to_representation(self, instance: str) -> str:
         return instance

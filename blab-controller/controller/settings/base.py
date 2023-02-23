@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "channels",
     "rest_framework",
     "corsheaders",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -127,6 +128,7 @@ CHANNEL_LAYERS: dict[str, dict[str, Any]] = {}
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 100,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 # Logging
