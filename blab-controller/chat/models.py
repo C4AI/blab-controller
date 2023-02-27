@@ -13,16 +13,26 @@ from overrides import overrides
 class Conversation(models.Model):
     """Represents a chat conversation."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    "Conversation ID (32 characters)"
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text=gettext("the conversation id, with 32 characters"),
+    )
 
     name = models.CharField(
-        pgettext("conversation name", "name"), max_length=50, blank=True, null=True
+        pgettext("conversation name", "name"),
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text=gettext("the conversation name, which can be blank"),
     )
-    """Conversation name"""
 
-    created_at = models.DateTimeField(gettext("time"), auto_now_add=True)
-    """When the conversation started"""
+    created_at = models.DateTimeField(
+        gettext("time"),
+        auto_now_add=True,
+        help_text=gettext("the instant when the conversation started"),
+    )
 
     class Meta:
         verbose_name = gettext("conversation")
@@ -32,17 +42,25 @@ class Conversation(models.Model):
 class Participant(models.Model):
     """Represents a chat participant (person or bot)."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    "Participant ID (32 characters)"
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text=gettext("the participant id, with 32 characters"),
+    )
 
     name = models.CharField(
         gettext("participant"),
         max_length=50,
+        help_text=gettext("name of the participant"),
     )
-    """Participant name"""
 
     HUMAN = "H"
+    """a human participant"""
+
     BOT = "B"
+    """a bot participant"""
+
     TYPE_CHOICES = [
         (HUMAN, gettext("human")),
         (BOT, gettext("bot")),
@@ -52,14 +70,15 @@ class Participant(models.Model):
         max_length=1,
         choices=TYPE_CHOICES,
         default=None,
+        help_text=gettext("the participant type (`H` = human, `B` = bot)"),
     )
-    """Participant type (human, bot)"""
 
     conversation = models.ForeignKey(
         Conversation,
         on_delete=models.PROTECT,
         verbose_name=pgettext("conversation", "participants"),
         related_name="participants",
+        help_text=gettext("the conversation to which the participant belongs"),
     )
 
     class Meta:
@@ -82,13 +101,15 @@ class Message(models.Model):
     """Represents a message in a conversation."""
 
     m_id = models.UUIDField(
-        unique=True, default=uuid.uuid4, editable=False, db_index=True
+        unique=True,
+        default=uuid.uuid4,
+        editable=False,
+        db_index=True,
+        help_text=gettext("the 32-character message id"),
     )
-    """Message ID (32 characters)
 
-    A numerical ID is still used internally as a primary key,
-    but it is not exposed to the users.
-    """
+    # Note that a separate numerical ID used internally
+    # (not exposed to clients) as a primary key
 
     class MessageType(models.TextChoices):
         """Contains types of messages."""
@@ -117,19 +138,26 @@ class Message(models.Model):
     type = models.CharField(
         max_length=1,
         choices=MessageType.choices,
+        help_text=gettext(
+            "the type of the message "
+            "(`S` = system, `T` = text, `V` = voice, `a` = audio, "
+            "`v` = video, `i` = image, `A` = arbitrary attachment) "
+        ),
     )
-    """The message type"""
 
     conversation = models.ForeignKey(
         Conversation,
         related_name="messages",
         on_delete=models.CASCADE,
         verbose_name=gettext("message"),
+        help_text=gettext("the conversation to which the message belongs"),
     )
-    """The conversation to which the message belongs"""
 
-    time = models.DateTimeField(gettext("time"), auto_now_add=True)
-    """When the message was sent or the event occurred"""
+    time = models.DateTimeField(
+        gettext("time"),
+        auto_now_add=True,
+        help_text=gettext("when the message was sent or the event occurred"),
+    )
 
     quoted_message = models.ForeignKey(
         "self",
@@ -137,8 +165,8 @@ class Message(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         verbose_name=gettext("quoted message"),
+        help_text=gettext("the message quoted by this message, if any"),
     )
-    """The message quoted by this message, if any"""
 
     sender = models.ForeignKey(
         Participant,
@@ -146,21 +174,21 @@ class Message(models.Model):
         null=True,
         blank=True,
         verbose_name=gettext("sender"),
+        help_text=gettext("who sent this message (NULL for system messages)"),
     )
-    """Who sent the message
-
-    This field is NULL if and only if the message is a system message.
-    """
 
     class ApprovalStatus(models.IntegerChoices):
         """Contains the situations a message can be in regarding approval."""
 
-        NO = 0, gettext("Not approved")
-        AUTOMATICALLY_APPROVED = 1, gettext("Automatically approved")
-        APPROVED_BY_BOT_MANAGER = 2, gettext("Approved by bot manager")
+        NO = 0, gettext("not approved")
+        AUTOMATICALLY_APPROVED = 1, gettext("automatically approved")
+        APPROVED_BY_BOT_MANAGER = 2, gettext("approved by bot manager")
 
     approval_status = models.IntegerField(
-        choices=ApprovalStatus.choices, default=ApprovalStatus.NO
+        gettext("approval status"),
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.NO,
+        help_text=gettext("the approval status of the message"),
     )
 
     class SystemEvent:
@@ -169,41 +197,44 @@ class Message(models.Model):
         LEFT = "participant-left"
         ENDED = "conversation-ended"
 
-    text = models.CharField(gettext("text"), max_length=4000, blank=True)
-    """The text contents of the message
-
-    For messages with files, this field stores an optional
-    caption typed by the user.
-
-    For voice messages (recorder on the browser), which do not have a caption,
-    this field optionally stores the automatically generated transcription.
-
-    For system messages, this field stores a string indicating the event type.
-    """
+    text = models.CharField(
+        gettext("text"),
+        max_length=4000,
+        blank=True,
+        help_text=gettext("the text contents of the message"),
+    )
+    # note: includes optional captions for messages with file attachments
+    # and event types for system messages
 
     additional_metadata = models.JSONField(
-        gettext("additional metadata"), default=dict, blank=True
+        gettext("additional metadata"),
+        default=dict,
+        blank=True,
+        help_text=gettext(
+            "additional metadata about the message "
+            "(usually system messages, with the key `participant_id`)"
+        ),
     )
-    """Additional metadata about the message.
-
-    System messages can use this field to store information about the event.
-    """
 
     original_file_name = models.CharField(
-        gettext("original file name"), max_length=100, blank=True, null=True
+        gettext("original file name"),
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text=gettext(
+            "original name of the file attached to the message "
+            "(it may not be set for files that are hosted externally)"
+        ),
     )
-    """Original name of the file attached to the message.
 
-    Only applicable for messages with files.
-
-    It may not be set for files that are hosted externally.
-    """
-
-    file_key = models.UUIDField(default=uuid.uuid4, editable=False)
-    """Key required to access the file.
-
-    It is not set for files that are hosted externally.
-    """
+    file_key = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        help_text=gettext(
+            "key required to access the file "
+            "(not set for files that are hosted externally)"
+        ),
+    )
 
     file = models.FileField(
         gettext("attached file"),
@@ -211,47 +242,59 @@ class Message(models.Model):
         blank=True,
         max_length=256,
         upload_to=_attachment_name,
+        help_text=gettext(
+            "the file attached to the message "
+            "(not set for files that are hosted externally)"
+        ),
     )
-    """Attached file.
 
-    It is not set for files that are hosted externally.
-    """
-
-    file_size = models.PositiveBigIntegerField(blank=True, null=True)
-    """File size in bytes.
-
-    It may not be set for files that are hosted externally.
-    """
+    file_size = models.PositiveBigIntegerField(
+        blank=True,
+        null=True,
+        help_text=gettext(
+            "file size in bytes (usually not set for files that are hosted externally)"
+        ),
+    )
 
     mime_type = models.CharField(
-        gettext("MIME type"), max_length=256, blank=True, null=True
+        gettext("MIME type"),
+        max_length=256,
+        blank=True,
+        null=True,
+        help_text=gettext("MIME type of the file attached to the message"),
     )
-    """MIME type of the file attached to the message.
-
-    Only applicable for messages with files.
-    """
 
     external_file_url = models.URLField(
-        gettext("external file URL"), max_length=1000, blank=True
+        gettext("external file URL"),
+        max_length=1000,
+        blank=True,
+        help_text=gettext(
+            "external URL of the attached file "
+            "(only set for files that are hosted externally)"
+        ),
     )
-    """External URL of the attached file.
-
-    It is only set for files that are hosted externally.
-    """
 
     local_id = models.CharField(
-        gettext("local message id"), blank=True, null=True, max_length=32
+        gettext("local message id"),
+        blank=True,
+        null=True,
+        max_length=32,
+        help_text=gettext("local message id, defined by the sender"),
     )
-    """Local message id, defined by the sender.
+    # Note:
+    # Subsequent attempts to send a message with the same local id from the
+    # same sender are ignored.
+    # The sender should include a unique local_id per message, and it can be used
+    # to identify each message when it is returned by the server.
 
-    Subsequent attempts to send a message with the same local id from the
-    same sender are ignored.
-    The sender should include a unique local_id per message, and it can be used
-    to identify each message when it is returned by the server.
-    """
-
-    command = models.CharField(gettext("command"), max_length=1000, blank=True)
-    """A JSON-encoded command sent by manager bots."""
+    command = models.CharField(
+        gettext("command"),
+        max_length=1000,
+        blank=True,
+        help_text=gettext(
+            "a JSON-encoded command (only in messages sent by manager bots)"
+        ),
+    )
 
     @overrides
     def clean(self) -> None:
@@ -292,19 +335,24 @@ class Message(models.Model):
 class MessageOption(models.Model):
     """Represents one of the options given to the user."""
 
-    option_text = models.CharField(gettext("option text"), max_length=4000, blank=True)
-    """Text of the option"""
+    option_text = models.CharField(
+        gettext("option text"),
+        max_length=4000,
+        blank=True,
+        help_text=gettext("text of the option"),
+    )
 
-    position = models.PositiveSmallIntegerField(gettext("option position"))
-    """Option position"""
+    position = models.PositiveSmallIntegerField(
+        gettext("option position"), help_text=gettext("the position of the option")
+    )
 
     message = models.ForeignKey(
         Message,
         related_name="options",
         on_delete=models.CASCADE,
         verbose_name=gettext("message"),
+        help_text=gettext("the message to which the option belongs"),
     )
-    """The message to which the option belongs"""
 
     class Meta:
         ordering = ["position"]

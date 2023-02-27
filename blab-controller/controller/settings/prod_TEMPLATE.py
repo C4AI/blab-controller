@@ -38,21 +38,20 @@ Each key is the bot name, and the value is a 4-tuple
 
 # Setting any of the following values to 0 disables that type of file.
 
-CHAT_LIMITS = {
-    "MAX_ATTACHMENT_SIZE": 15 * 2**20,
-    # maximum size of an attachment (in bytes)
-    "MAX_IMAGE_SIZE": 15 * 2**20,
-    # maximum size of an image (in bytes)
-    "MAX_VIDEO_SIZE": 15 * 2**20,
-    # maximum size of an image (in bytes)
-    "MAX_AUDIO_SIZE": 15 * 2**20,
-    # maximum size of an audio file (in bytes)
-    "MAX_VOICE_SIZE": 15 * 2**20,
-    # maximum size of any voice recording file (in bytes)
-}
-
-CHAT_LIMITS = {k: 0 for k in CHAT_LIMITS}
-# Disabling message attachments
+CHAT_LIMITS.update(
+    **{
+        "MAX_ATTACHMENT_SIZE": 15 * 2**20,
+        # maximum size of an attachment (in bytes)
+        "MAX_IMAGE_SIZE": 15 * 2**20,
+        # maximum size of an image (in bytes)
+        "MAX_VIDEO_SIZE": 15 * 2**20,
+        # maximum size of an image (in bytes)
+        "MAX_AUDIO_SIZE": 15 * 2**20,
+        # maximum size of an audio file (in bytes)
+        "MAX_VOICE_SIZE": 15 * 2**20,
+        # maximum size of any voice recording file (in bytes)
+    }
+)
 
 ##########################################################################
 

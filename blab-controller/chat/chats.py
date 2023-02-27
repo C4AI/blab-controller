@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from importlib import import_module
-from typing import Any, Callable, NamedTuple, cast
+from typing import Any, Callable, NamedTuple, TypedDict, cast
 from uuid import UUID
 
 from django.conf import settings
@@ -359,3 +359,22 @@ class Chat:
         return cls._all_chats.get(str(conversation_id)) or Chat(
             Conversation.objects.get(id=conversation_id)
         )
+
+
+class ChatLimits(TypedDict):
+    """Maximum size of each attachment type."""
+
+    MAX_ATTACHMENT_SIZE: int
+    """maximum size of an attached file (in bytes)"""
+
+    MAX_IMAGE_SIZE: int
+    """maximum size of an image file (in bytes)"""
+
+    MAX_VIDEO_SIZE: int
+    """maximum size of a video file (in bytes)"""
+
+    MAX_AUDIO_SIZE: int
+    """maximum size of an audio file (in bytes)"""
+
+    MAX_VOICE_SIZE: int
+    """maximum size of a voice recording file (in bytes)"""

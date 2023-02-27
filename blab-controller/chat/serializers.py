@@ -4,6 +4,8 @@ from typing import Any, Callable, cast
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Model
+from django.utils.translation import gettext_lazy as gettext
+from django.utils.translation import pgettext_lazy as pgettext
 from overrides import overrides
 from rest_framework import status
 from rest_framework.exceptions import APIException, ValidationError
@@ -13,16 +15,23 @@ from rest_framework.fields import (
     IntegerField,
     SerializerMethodField,
 )
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import ModelSerializer, Serializer
 
 from .models import Conversation, Message, MessageOption, Participant
 
 
 class ConversationOnListSerializer(ModelSerializer):
-    """Serialises a Conversation instance."""
+    """Conversation representation."""
 
-    participant_count = SerializerMethodField()
-    my_participant_id = SerializerMethodField()
+    participant_count = SerializerMethodField(
+        help_text=gettext("the number of participants in the conversation")
+    )
+    my_participant_id = SerializerMethodField(
+        help_text=gettext(
+            "the participant id that belongs to the requesting user "
+            "in the conversation, if any"
+        )
+    )
 
     # noinspection PyMethodMayBeStatic
     def get_participant_count(self, conversation: Conversation) -> int:
@@ -58,7 +67,7 @@ class ConversationOnListSerializer(ModelSerializer):
 
 
 class ParticipantSerializer(ModelSerializer):
-    """Serialises a Participant instance."""
+    """Participant representation."""
 
     class Meta:
         model = Participant
@@ -69,8 +78,16 @@ class ParticipantSerializer(ModelSerializer):
 class ConversationSerializer(ModelSerializer):
     """Serialises a Conversation instance."""
 
-    participants = ParticipantSerializer(many=True, read_only=True)
-    my_participant_id = SerializerMethodField()
+    participants = ParticipantSerializer(
+        many=True, read_only=True, help_text=gettext("participants in the conversation")
+    )
+
+    my_participant_id = SerializerMethodField(
+        help_text=gettext(
+            "the participant id that belongs to the requesting user "
+            "in the conversation, if any"
+        )
+    )
 
     def get_my_participant_id(self, conversation: Conversation) -> str | None:
         """Return the participant id of the user in the conversation.
@@ -168,7 +185,7 @@ def _only_with_file(m: Message | dict[str, Any]) -> bool:
 
 
 class MessageOptionSerializer(ModelSerializer):
-    """Serialises message options."""
+    """Message option representation."""
 
     @overrides
     def to_internal_value(self, data: str | dict[str, Any]) -> dict[str, Any]:
@@ -183,41 +200,87 @@ class MessageOptionSerializer(ModelSerializer):
 
 # noinspection PyAbstractClass,PyMethodMayBeStatic
 class MessageSerializer(ModelSerializer):
-    """Serialises messages."""
+    """Message representation."""
 
     conditional = ConditionalFields()
 
-    id = CharField(source="m_id", read_only=True)
+    id = CharField(
+        source="m_id", read_only=True, help_text=Message.m_id.field.help_text
+    )
 
-    sent_by_human = SerializerMethodField(read_only=True)
+    sent_by_human = SerializerMethodField(
+        read_only=True,
+        help_text=gettext("whether the message was sent by a human user"),
+    )
 
-    additional_metadata = SerializerMethodField()
+    additional_metadata = SerializerMethodField(
+        help_text=Message.additional_metadata.field.help_text
+    )
     conditional("additional_metadata", _only_system)
 
-    event = CharField(source="text", read_only=True)
+    event = CharField(
+        source="text",
+        read_only=True,
+        help_text=gettext("event type (for system messages)"),
+    )
     conditional("event", _only_system)
 
     quoted_message_id = CharField(
-        source="quoted_message.m_id", allow_null=True, allow_blank=True, required=False
+        source="quoted_message.m_id",
+        allow_null=True,
+        allow_blank=True,
+        required=False,
+        help_text=(
+            pgettext("message", "id of %s") % Message.quoted_message.field.help_text
+        ),
     )
     conditional("quoted_message_id", _only_non_system)
 
-    sender_id = CharField(read_only=True)
+    sender_id = CharField(
+        read_only=True,
+        help_text=(
+            pgettext("sender", "id of %s") % Message.quoted_message.field.help_text
+        ),
+    )
     conditional("sender_id", _only_non_system)
 
     conditional("local_id", _only_non_system)
     conditional("text", _only_non_system)
 
-    file_url = SerializerMethodField()
+    file_url = SerializerMethodField(
+        help_text=(
+            gettext("the address from which the attached file can be downloaded")
+        ),
+    )
     conditional("file_url", _only_with_file)
 
-    file_size = IntegerField(read_only=True)
+    file_size = IntegerField(
+        read_only=True,
+        help_text=(
+            gettext(
+                "the size of the attached file "
+                "(it may not be set for externally-hosted files)"
+            )
+        ),
+    )
     conditional("file_size", _only_with_file)
 
-    file_name = SerializerMethodField()
+    file_name = SerializerMethodField(
+        help_text=(
+            gettext(
+                "the original name of the file "
+                "(it may not be set for externally-hosted files)"
+            )
+        ),
+    )
     conditional("file_name", _only_with_file)
 
-    file = FileField(write_only=True, allow_null=True, required=False)
+    file = FileField(
+        write_only=True,
+        allow_null=True,
+        required=False,
+        help_text=gettext("the file attached to the message"),
+    )
     conditional("file", _only_with_file)
 
     options = MessageOptionSerializer(many=True, required=False)
@@ -411,3 +474,38 @@ class MessageSerializer(ModelSerializer):
                     return None
             raise
         return cast(Message, message)
+
+
+# noinspection PyAbstractClass
+class ChatLimitsSerializer(Serializer):
+    """Chat limits representation."""
+
+    MAX_ATTACHMENT_SIZE = IntegerField(
+        required=False,
+        default=0,
+        help_text=gettext("maximum size of an attached file (in bytes)"),
+    )
+
+    MAX_IMAGE_SIZE = IntegerField(
+        required=False,
+        default=0,
+        help_text=gettext("maximum size of an image file (in bytes)"),
+    )
+
+    MAX_VIDEO_SIZE = IntegerField(
+        required=False,
+        default=0,
+        help_text=gettext("maximum size of a video file (in bytes)"),
+    )
+
+    MAX_AUDIO_SIZE = IntegerField(
+        required=False,
+        default=0,
+        help_text=gettext("maximum size of an audio file (in bytes)"),
+    )
+
+    MAX_VOICE_SIZE = IntegerField(
+        required=False,
+        default=0,
+        help_text=gettext("maximum size of a voice recording file (in bytes)"),
+    )

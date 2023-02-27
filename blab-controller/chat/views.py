@@ -7,14 +7,21 @@ from django.conf import settings
 from django.db.models import Model
 from django.http import QueryDict
 from django.utils.dateparse import parse_datetime
+from drf_spectacular.utils import (
+    OpenApiExample,
+    extend_schema,
+    extend_schema_serializer,
+)
 from overrides import overrides
 from rest_framework.decorators import action
 from rest_framework.exceptions import ParseError, PermissionDenied, ValidationError
+from rest_framework.fields import SerializerMethodField
 from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin
 from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.serializers import BaseSerializer, Serializer
+from rest_framework.serializers import Serializer
+from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 
 from . import blab_logger as logger
@@ -22,6 +29,7 @@ from .bots import all_bots
 from .chats import Chat
 from .models import Conversation, Message, Participant
 from .serializers import (
+    ChatLimitsSerializer,
     ConversationOnListSerializer,
     ConversationSerializer,
     MessageSerializer,
@@ -238,28 +246,69 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewS
 
 
 # noinspection PyAbstractClass
-class _Identity(BaseSerializer):
-    fields = {}
-
-    @overrides
-    def to_representation(self, instance: str) -> str:
-        return instance
 
 
-class BotsViewSet(ListModelMixin, GenericViewSet):
+@extend_schema_serializer(many=True)
+class BotListSerializer(Serializer):
+    """Bot list representation."""
+
+    results = SerializerMethodField(
+        read_only=True,
+    )
+
+    def get_results(self, bots: list[str]) -> list[str]:
+        """Return the list of bots given in the argument.
+
+        Args:
+            bots: list of bots
+
+        Return:
+            the same list (this is an identity function)
+        """
+        return bots
+
+
+class BotsViewSet(APIView):
     """API endpoint that allows access to the list of available bots."""
 
-    serializer_class = _Identity
+    serializer_class = BotListSerializer
+    action = "list"
 
-    queryset = list(all_bots().keys())
+    @extend_schema(
+        examples=[OpenApiExample("ex1", value={"results": ["Bot1", "Bot2", "Bot3"]})]
+    )
+    # noinspection PyUnusedLocal
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Return the list of bots.
+
+        Args:
+            request: ignored
+            args: ignored
+            kwargs: ignored
+
+        Return:
+            a list of bot names
+        """
+        return Response(BotListSerializer(list(all_bots().keys())).data)
 
 
-class LimitsViewSet(RetrieveModelMixin, GenericViewSet):
+class LimitsViewSet(APIView):
     """API endpoint that allows access to the chat limits."""
 
-    serializer_class = _Identity
+    serializer_class = ChatLimitsSerializer
+    action = "list"
 
-    # noinspection PyUnusedLocal
-    @overrides
-    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        return Response(settings.CHAT_LIMITS)
+    # noinspection PyUnusedLocal, PyMethodMayBeStatic
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Return the chat limits.
+
+        Args:
+            request: ignored
+            args: ignored
+            kwargs: ignored
+
+        Return:
+            a dictionary mapping file types to the maximum number of bytes
+        """
+        data = ChatLimitsSerializer(settings.CHAT_LIMITS).data
+        return Response(data)
