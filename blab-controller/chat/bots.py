@@ -5,6 +5,7 @@ from http.client import HTTPConnection, HTTPSConnection
 from time import sleep
 from typing import Any, Callable, Protocol
 from urllib.parse import urlparse
+from uuid import uuid4
 
 from django.contrib.sessions.backends.db import SessionStore
 from overrides import overrides
@@ -70,6 +71,7 @@ class UpperCaseEchoBot(Bot):
                 "type": Message.MessageType.TEXT,
                 "text": result,
                 "quoted_message_id": str(message.m_id),
+                "local_id": str(uuid4()).replace("-", ""),
             },
         )
 
@@ -91,6 +93,7 @@ class CalculatorBot(Bot):
                 "type": Message.MessageType.TEXT,
                 "text": result,
                 "quoted_message_id": str(message.m_id),
+                "local_id": str(uuid4()).replace("-", ""),
             },
         )
 
