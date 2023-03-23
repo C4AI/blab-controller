@@ -225,7 +225,14 @@ class Chat:
         else:
             approval_status = Message.ApprovalStatus.NO
 
+        overridden_data = {
+            "conversation_id": str(self.conversation.id),
+            "sender_id": str(participant.id),
+            "approval_status": approval_status,
+        }
+
         if participant.type == Participant.BOT and participant.name == manager:
+            overridden_data["sent_by_manager"] = True
             command = message_data.get("command", "{}")
             try:
                 j = json.loads(command)
@@ -236,6 +243,34 @@ class Chat:
                     "ignoring malformed message from manager bot", command=command
                 )
                 j = {}
+
+            self_approve = j.get("self_approve", False)
+            if isinstance(self_approve, bool) and self_approve:
+                overridden_data[
+                    "approval_status"
+                ] = Message.ApprovalStatus.APPROVED_BY_BOT_MANAGER
+                self.log.info(
+                    "manager bot self-approved message",
+                    local_id=message_data.get("local_id", ""),
+                )
+
+            on_behalf_of = j.get("on_behalf_of", None)
+            if on_behalf_of:
+                try:
+                    principal = Participant.objects.get(id=str(on_behalf_of))
+                    # here, principal is the inverse of proxy (as in legal language)
+                    if principal.conversation.id != self.conversation.id:
+                        principal = None
+                except Participant.DoesNotExist:
+                    principal = None
+                if not principal:
+                    self.log.warn(
+                        "ignoring message that the manager bot tried to send by proxy "
+                        "on behalf of another participant",
+                        on_behalf_of=on_behalf_of,
+                    )
+                overridden_data["sender_id"] = str(principal.id)
+
             action = j.get("action", "")
             quoted_message_id = message_data.get("quoted_message_id", None)
             quoted_message = None
@@ -244,8 +279,9 @@ class Chat:
                     quoted_message = Message.objects.get(m_id=quoted_message_id)
                 except Message.DoesNotExist:
                     quoted_message = None
-            if quoted_message.conversation.id != participant.conversation.id:
-                quoted_message = None
+                if quoted_message.conversation.id != participant.conversation.id:
+                    quoted_message = None
+
             match action:
                 case "approve":
 
@@ -307,12 +343,8 @@ class Chat:
                         )
         else:
             message_data.pop("command", None)
+            overridden_data["sent_by_manager"] = False
 
-        overridden_data = {
-            "conversation_id": str(self.conversation.id),
-            "sender_id": str(participant.id),
-            "approval_status": approval_status,
-        }
         return MessageSerializer.create_message({**message_data, **overridden_data})
 
     def deliver_message_to_bot(self, message: Message, bot: Participant) -> None:

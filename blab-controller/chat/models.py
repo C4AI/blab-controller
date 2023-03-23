@@ -281,6 +281,7 @@ class Message(models.Model):
         max_length=32,
         help_text=gettext("local message id, defined by the sender"),
     )
+
     # Note:
     # Subsequent attempts to send a message with the same local id from the
     # same sender are ignored.
@@ -295,6 +296,17 @@ class Message(models.Model):
             "a JSON-encoded command (only in messages sent by manager bots)"
         ),
     )
+
+    sent_by_manager = models.BooleanField(
+        gettext("sent by manager"),
+        default=False,
+        help_text=gettext("whether the message was sent by the manager bot"),
+    )
+
+    # Note:
+    # The manager bot can send messages on behalf of other participants.
+    # The field above can be used to tell whether the message was actually sent by
+    # the associated participant.
 
     @overrides
     def clean(self) -> None:
