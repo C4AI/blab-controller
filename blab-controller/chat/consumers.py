@@ -159,13 +159,18 @@ class ConversationConsumer(AsyncWebsocketConsumer):
 
     @classmethod
     async def deliver_message_to_bot(
-        cls, message: Message, bot_name_or_participant_id: str
+        cls,
+        message: Message,
+        bot_name_or_participant_id: str,
+        field_overrides: dict[str, Any] | None = None,
     ) -> None:
         """Deliver a message only to a bot.
 
         Args:
             message: message to be delivered
-            bot_name_or_participant_id: bot's name or the id of the participant
+            bot_name_or_participant_id: bot name or the id of the participant
+            field_overrides: dict from field names to the values that should
+                replace the actual values
         """
         data = await database_sync_to_async(lambda: MessageSerializer(message).data)()
         q = Q(name=bot_name_or_participant_id)
@@ -182,7 +187,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         )()
         await get_channel_layer().group_send(
             _conversation_id_to_group_name(message.conversation.id, bot.id),
-            {"type": "deliver_message", "message": data},
+            {"type": "deliver_message", "message": {**data, **(field_overrides or {})}},
         )
 
     @classmethod

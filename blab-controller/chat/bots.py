@@ -1,7 +1,13 @@
-"""Contains a basic class that implements a chat bot."""
+"""Contains a basic class that implements a chatbot."""
+
+from __future__ import annotations
+
 import json
 import re
+from dataclasses import dataclass, fields
+from datetime import datetime
 from http.client import HTTPConnection, HTTPSConnection
+from operator import attrgetter
 from time import sleep
 from typing import Any, Callable, Protocol
 from urllib.parse import urlparse
@@ -22,8 +28,47 @@ class ConversationInfo(Protocol):
     send_function: Callable[[dict[str, Any]], Message]
 
 
+@dataclass
+class ChatMessage:
+    """Represents a message.
+
+    Instances do not have any connection with the database model.
+    """
+
+    id: str
+    time: datetime
+    type: Message.MessageType
+    sent_by_human: bool
+    options: list[str] | None = None
+    local_id: str | None = None
+    text: str | None = None
+    sender_id: str | None = None
+    additional_metadata: dict[str, Any] | None = None
+    event: str | None = None
+    quoted_message_id: str | None = None
+
+    def __post_init__(self):
+        if isinstance(self.time, str):
+            self.time = datetime.fromisoformat(self.time.replace("Z", "+00:00"))
+        if isinstance(self.type, str):
+            self.type = Message.MessageType(self.type)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> ChatMessage:
+        """Create an instance from a dict.
+
+        Args:
+            d: the serialized data
+
+        Returns:
+            a ChatMessage instance with the data in d
+        """
+        supported_fields = set(map(attrgetter("name"), fields(cls)))
+        return ChatMessage(**{k: v for k, v in d.items() if k in supported_fields})
+
+
 class Bot:
-    """Represents a chat bot."""
+    """Represents a chatbot."""
 
     def __init__(self, conversation_info: ConversationInfo):
         """.
@@ -32,8 +77,9 @@ class Bot:
             conversation_info: conversation data
         """
         self.conversation_info = conversation_info
+        self.status = {}
 
-    def receive_message(self, message: Message) -> None:
+    def receive_message(self, message: ChatMessage) -> None:
         """Receive a message.
 
         In order to avoid bots that answer to each other,
@@ -54,12 +100,16 @@ class Bot:
         """
 
 
+def _generate_local_id() -> str:
+    return str(uuid4()).replace("-", "")
+
+
 class UpperCaseEchoBot(Bot):
     """Bot example - echoes text messages in upper-case letters."""
 
     @overrides
-    def receive_message(self, message: Message) -> None:
-        if not message.sent_by_human():
+    def receive_message(self, message: ChatMessage) -> None:
+        if not message.sent_by_human:
             return
         if message.type != Message.MessageType.TEXT:
             result = "?"
@@ -70,8 +120,8 @@ class UpperCaseEchoBot(Bot):
             {
                 "type": Message.MessageType.TEXT,
                 "text": result,
-                "quoted_message_id": str(message.m_id),
-                "local_id": str(uuid4()).replace("-", ""),
+                "quoted_message_id": str(message.id),
+                "local_id": _generate_local_id(),
             },
         )
 
@@ -80,8 +130,8 @@ class CalculatorBot(Bot):
     """Bot example - evaluates simple mathematical expressions."""
 
     @overrides
-    def receive_message(self, message: Message) -> None:
-        if not message.sent_by_human():
+    def receive_message(self, message: ChatMessage) -> None:
+        if not message.sent_by_human:
             return
         if message.type != Message.MessageType.TEXT:
             result = "?"
@@ -92,8 +142,8 @@ class CalculatorBot(Bot):
             {
                 "type": Message.MessageType.TEXT,
                 "text": result,
-                "quoted_message_id": str(message.m_id),
-                "local_id": str(uuid4()).replace("-", ""),
+                "quoted_message_id": str(message.id),
+                "local_id": _generate_local_id(),
             },
         )
 
@@ -138,16 +188,26 @@ class CalculatorBot(Bot):
             return str(result)
 
 
-def manager_redirection(*bot_names_or_participants_ids: str) -> str:
-    r"""Return a string that indicates the bots that will receive a given message.
+def manager_redirection(
+    *bot_names_or_participants_ids: str, field_overrides: dict[str | Any] | None = None
+) -> str:
+    """Return a string that indicates the bots that will receive a given message.
 
     Args:
         bot_names_or_participants_ids: the names or ids of the bots
+        field_overrides: dict from field names to the values that should
+            replace the actual values
 
     Returns:
         a JSON-serialised redirection command
     """
-    return json.dumps(dict(action="redirect", bots=bot_names_or_participants_ids))
+    return json.dumps(
+        dict(
+            action="redirect",
+            bots=bot_names_or_participants_ids,
+            overrides=field_overrides or {},
+        )
+    )
 
 
 def manager_approval() -> str:
@@ -167,12 +227,12 @@ class TransparentManagerBot(Bot):
     """
 
     @overrides
-    def receive_message(self, message: Message) -> None:
+    def receive_message(self, message: ChatMessage) -> None:
         if (
-            message.sent_by_human()
+            message.sent_by_human
             or message.type == Message.MessageType.SYSTEM
-            or str(message.sender.id) == str(self.conversation_info.bot_participant_id)
-            or int(message.approval_status)
+            or str(message.sender_id) == str(self.conversation_info.bot_participant_id)
+            or int(Message.objects.get(m_id=message.id).approval_status)
         ):
             return
         result = manager_approval()
@@ -180,7 +240,8 @@ class TransparentManagerBot(Bot):
             {
                 "type": Message.MessageType.TEXT,
                 "command": result,
-                "quoted_message_id": str(message.m_id),
+                "quoted_message_id": str(message.id),
+                "local_id": _generate_local_id(),
             },
         )
 
@@ -189,13 +250,20 @@ class CalcOrEchoManagerBot(Bot):
     """Bot manager that selects between calculator and upper-case echo bots."""
 
     @overrides
-    def __init__(self, conversation_info: ConversationInfo):
+    def __init__(
+        self,
+        conversation_info: ConversationInfo,
+        calculator_bot_name: str,
+        echo_bot_name: str,
+    ):
+        self.calculator_bot_name = calculator_bot_name
+        self.echo_bot_name = echo_bot_name
         super().__init__(conversation_info)
 
     @overrides
-    def receive_message(self, message: Message) -> None:
-        target = str(message.m_id)
-        if message.type == Message.MessageType.SYSTEM or str(message.sender.id) == str(
+    def receive_message(self, message: ChatMessage) -> None:
+        target = message.id
+        if message.type == Message.MessageType.SYSTEM or str(message.sender_id) == str(
             self.conversation_info.bot_participant_id
         ):
             # ignore system and manager's own messages
@@ -203,45 +271,33 @@ class CalcOrEchoManagerBot(Bot):
         if message.type != Message.MessageType.TEXT:
             # ignore unsupported non-text messages
             return
-        if not message.sent_by_human():
+        if not message.sent_by_human:
             # sent by bot
-            if message.sender.name == "Calculator" and message.text == "?":
+            sender_name = Participant.objects.get(id=message.sender_id).name
+            if sender_name == self.calculator_bot_name and message.text == "?":
                 # probably a malformed expression that resulted in '?',
                 # so we send to upper-case ECHO instead
-                result = manager_redirection("ECHO")
-                target = str(message.quoted_message.m_id)
-            elif not int(message.approval_status):
+                result = manager_redirection(self.echo_bot_name)
+                target = message.quoted_message_id
+            elif not int(Message.objects.get(m_id=message.id).approval_status):
                 # something else: just approve it
                 result = manager_approval()
             else:
                 return
         else:
             # sent by human
-            bots_in_conversation = set(
-                map(
-                    lambda p: p.name,
-                    filter(
-                        lambda p: p.type == Participant.BOT,
-                        message.conversation.participants.all(),
-                    ),
-                )
-            )
-            if "Calculator" in bots_in_conversation and re.match(
-                r"^[0-9+\-*/ ().]+$", message.text
-            ):
+            if re.match(r"^[0-9+\-*/ ().]+$", message.text):
                 # looks like an expression -> send to calculator
-                result = manager_redirection("Calculator")
-            elif "ECHO" in bots_in_conversation:
-                # not an expression -> send to upper-case ECHO
-                result = manager_redirection("ECHO")
+                result = manager_redirection(self.calculator_bot_name)
             else:
-                # should not happen
-                return
+                # not an expression -> send to upper-case ECHO
+                result = manager_redirection(self.echo_bot_name)
         self.conversation_info.send_function(
             {
                 "type": Message.MessageType.TEXT,
                 "command": result,
                 "quoted_message_id": target,
+                "local_id": _generate_local_id(),
             },
         )
 
@@ -259,7 +315,7 @@ class PreSelectManagerBot(Bot):
         bots: list[str],
         greeting: str,
         after_choice: str,
-        exit_word: str
+        exit_word: str,
     ):
         super().__init__(conversation_info)
         self.greeting = greeting
@@ -268,7 +324,7 @@ class PreSelectManagerBot(Bot):
         self.bots = bots
 
     @overrides
-    def receive_message(self, message: Message) -> None:
+    def receive_message(self, message: ChatMessage) -> None:
         result_msg = None
         greeting = {"text": self.greeting, "options": [*self.bots]}
         if message.type == Message.MessageType.SYSTEM:
@@ -278,12 +334,12 @@ class PreSelectManagerBot(Bot):
                 # when conversation is created, send greeting message
                 result_msg = greeting
             # ignore other system messages
-        elif str(message.sender.id) == str(self.conversation_info.bot_participant_id):
+        elif str(message.sender_id) == str(self.conversation_info.bot_participant_id):
             if message.text and not int(message.approval_status):
                 # approve manager's own messages
                 result_msg = {"command": manager_approval()}
             # ignore manager's commands
-        elif not message.sent_by_human():
+        elif not message.sent_by_human:
             # approve messages sent by bots
             if not int(message.approval_status):
                 result_msg = {"command": manager_approval()}
@@ -316,6 +372,7 @@ class PreSelectManagerBot(Bot):
                     "type": Message.MessageType.TEXT,
                     "quoted_message_id": str(message.m_id),
                     **result_msg,
+                    "local_id": _generate_local_id(),
                 }
             )
 
@@ -334,7 +391,7 @@ class WebSocketExternalBot(Bot):
         self.trigger_url = trigger_url
 
     @overrides
-    def receive_message(self, message: Message) -> None:
+    def receive_message(self, message: ChatMessage) -> None:
         if (
             message.type == Message.MessageType.SYSTEM
             and message.text == Message.SystemEvent.JOINED

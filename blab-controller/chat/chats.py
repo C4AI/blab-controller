@@ -11,7 +11,7 @@ from django.conf import settings
 from django.db.models import Q
 
 from . import blab_logger as logger
-from .bots import Bot, all_bots
+from .bots import Bot, ChatMessage, all_bots
 from .models import Conversation, Message, Participant
 from .serializers import MessageSerializer
 
@@ -313,8 +313,11 @@ class Chat:
                         )
                         for part in j.get("bots", []):
                             # if bot uses WebSockets
+                            field_overrides = j.get("overrides", None)
                             ConversationConsumer.deliver_message_to_bot(
-                                quoted_message, part
+                                quoted_message,
+                                part,
+                                field_overrides=field_overrides,
                             )
                             # if bot is internal
                             q = Q(name=part)
@@ -335,7 +338,11 @@ class Chat:
                                 if settings.CHAT_ENABLE_QUEUE
                                 else deliver_message_to_bot
                             )
-                            func(str(b.id), quoted_message.id)
+                            func(
+                                str(b.id),
+                                quoted_message.id,
+                                field_overrides=field_overrides,
+                            )
                 case _:
                     if action:
                         self.log.warn(
@@ -347,12 +354,19 @@ class Chat:
 
         return MessageSerializer.create_message({**message_data, **overridden_data})
 
-    def deliver_message_to_bot(self, message: Message, bot: Participant) -> None:
+    def deliver_message_to_bot(
+        self,
+        message: Message,
+        bot: Participant,
+        field_overrides: dict[str, Any] | None = None,
+    ) -> None:
         """Deliver a message only to the specified bot.
 
         Args:
             message: the message to be delivered
             bot: the bot which will receive the message
+            field_overrides: dict from field names to the values that
+                should replace the actual values
         """
         if bot.conversation.id != self.conversation.id:
             raise ValueError("Participant is not in the conversation")
@@ -361,7 +375,11 @@ class Chat:
         if bot.type != Participant.BOT:
             raise ValueError("Participant is not a bot")
         bot = _get_bot(all_bots()[bot.name], bot.id, bot.conversation.id)
-        bot.receive_message(message)
+        message_data = {
+            **MessageSerializer().to_representation(message),
+            **(field_overrides or {}),
+        }
+        bot.receive_message(ChatMessage.from_dict(message_data))
 
     def deliver_status_to_bot(self, status: dict[str, Any], bot: Participant) -> None:
         """Deliver status only to the specified bot.

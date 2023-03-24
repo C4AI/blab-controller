@@ -20,6 +20,7 @@ class ConversationInfo(NamedTuple):
 def deliver_message_to_bot(
     bot_participant_id: str,
     message_id: int,
+    field_overrides: dict[str, Any] | None = None,
 ) -> None:
     """Send a message to a bot.
 
@@ -28,11 +29,13 @@ def deliver_message_to_bot(
             corresponds to this bot in this conversation
         message_id: id of the message that is being sent
             to the bot
+        field_overrides: dict from field names to the values
+            that should replace the actual values
     """
     message = Message.objects.get(id=message_id)
     bot_participant = Participant.objects.get(pk=bot_participant_id)
     Chat.get_chat(message.conversation.id).deliver_message_to_bot(
-        message, bot_participant
+        message, bot_participant, field_overrides=field_overrides
     )
 
 
