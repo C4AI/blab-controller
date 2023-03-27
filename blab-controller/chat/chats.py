@@ -8,6 +8,7 @@ from typing import Any, Callable, NamedTuple, TypedDict, cast
 from uuid import UUID
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 
 from . import blab_logger as logger
@@ -214,11 +215,6 @@ class Chat:
         if participant.conversation.id != self.conversation.id:
             raise ValueError("This participant belongs to another conversation")
 
-        # importing here to avoid circular imports
-
-        from .consumers import ConversationConsumer
-        from .tasks import deliver_message_to_bot
-
         manager = getattr(settings, "CHAT_BOT_MANAGER", None)
         if participant.type == Participant.HUMAN or not manager:
             approval_status = Message.ApprovalStatus.AUTOMATICALLY_APPROVED
@@ -231,8 +227,13 @@ class Chat:
             "approval_status": approval_status,
         }
 
-        if participant.type == Participant.BOT and participant.name == manager:
-            overridden_data["sent_by_manager"] = True
+        from_manager = (
+            participant.type == Participant.BOT and participant.name == manager
+        )
+
+        j = {}
+        if from_manager:
+
             command = message_data.get("command", "{}")
             try:
                 j = json.loads(command)
@@ -306,43 +307,14 @@ class Chat:
                             redirected_message_id=quoted_message_id,
                         )
                     else:
+                        targets = j.get("bots", [])
+                        field_overrides = j.get("overrides", None)
                         self.log.info(
                             "manager bot redirected message",
                             redirected_message_id=quoted_message_id,
-                            bots=j.get("bots", []),
+                            bots=targets,
                         )
-                        for part in j.get("bots", []):
-                            # if bot uses WebSockets
-                            field_overrides = j.get("overrides", None)
-                            ConversationConsumer.deliver_message_to_bot(
-                                quoted_message,
-                                part,
-                                field_overrides=field_overrides,
-                            )
-                            # if bot is internal
-                            q = Q(name=part)
-                            try:
-                                u = UUID(part)
-                            except ValueError:
-                                pass
-                            else:
-                                q |= Q(id=u)
-                            b = (
-                                quoted_message.conversation.participants.filter(q)
-                                .filter(type=Participant.BOT)
-                                .first()
-                            )
-
-                            func = (
-                                deliver_message_to_bot.delay
-                                if settings.CHAT_ENABLE_QUEUE
-                                else deliver_message_to_bot
-                            )
-                            func(
-                                str(b.id),
-                                quoted_message.id,
-                                field_overrides=field_overrides,
-                            )
+                        self._redirect_message(quoted_message, targets, field_overrides)
                 case _:
                     if action:
                         self.log.warn(
@@ -350,9 +322,69 @@ class Chat:
                         )
         else:
             message_data.pop("command", None)
-            overridden_data["sent_by_manager"] = False
 
-        return MessageSerializer.create_message({**message_data, **overridden_data})
+        created_message = MessageSerializer.create_message(
+            {**message_data, **overridden_data, "sent_by_manager": from_manager},
+        )
+
+        if from_manager:
+            self_redirect = j.get("self_redirect", False)
+            if isinstance(self_redirect, bool) and self_redirect:
+                targets = j.get("bots", [])
+                self.log.info(
+                    "manager bot self-redirected message",
+                    redirected_message_id=str(created_message.m_id),
+                    bots=targets,
+                )
+
+                transaction.on_commit(
+                    lambda: self._redirect_message(created_message, targets)
+                )
+        return created_message
+
+    # noinspection PyMethodMayBeStatic
+    def _redirect_message(
+        self,
+        message: Message,
+        targets: list[str],
+        field_overrides: dict[str, Any] | None = None,
+    ) -> None:
+        # importing here to avoid circular imports
+
+        from .consumers import ConversationConsumer
+        from .tasks import deliver_message_to_bot
+
+        for part in targets:
+            # if bot uses WebSockets
+            ConversationConsumer.deliver_message_to_bot(
+                message,
+                part,
+                field_overrides=field_overrides,
+            )
+            # if bot is internal
+            q = Q(name=part)
+            try:
+                u = UUID(part)
+            except ValueError:
+                pass
+            else:
+                q |= Q(id=u)
+            b = (
+                message.conversation.participants.filter(q)
+                .filter(type=Participant.BOT)
+                .first()
+            )
+
+            func = (
+                deliver_message_to_bot.delay
+                if settings.CHAT_ENABLE_QUEUE
+                else deliver_message_to_bot
+            )
+            func(
+                str(b.id),
+                message.id,
+                field_overrides=field_overrides,
+            )
 
     def deliver_message_to_bot(
         self,

@@ -59,7 +59,7 @@ def _message_watcher_function(instance: Message) -> None:
     # if the message was sent by a bot, send it only to the manager bot,
     # so that it can possibly approve it
 
-    avoid_non_manager_bots = manager_bot and instance.sent_by_human()
+    avoid_non_manager_bots = manager_bot and instance.type != Message.MessageType.SYSTEM
 
     if avoid_non_manager_bots:
         async_to_sync(ConversationConsumer.deliver_message_to_bot_manager)(instance)

@@ -211,7 +211,7 @@ def manager_redirection(
 
 
 def manager_approval() -> str:
-    """Return a string that indicates that a message has been appproved.
+    """Return a string that indicates that a message has been approved.
 
     Returns:
         a JSON-serialised approval command
@@ -263,9 +263,10 @@ class CalcOrEchoManagerBot(Bot):
     @overrides
     def receive_message(self, message: ChatMessage) -> None:
         target = message.id
-        if message.type == Message.MessageType.SYSTEM or str(message.sender_id) == str(
+        from_itself = str(message.sender_id) == str(
             self.conversation_info.bot_participant_id
-        ):
+        )
+        if message.type == Message.MessageType.SYSTEM or from_itself:
             # ignore system and manager's own messages
             return
         if message.type != Message.MessageType.TEXT:
