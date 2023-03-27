@@ -338,7 +338,9 @@ class Chat:
                 )
 
                 transaction.on_commit(
-                    lambda: self._redirect_message(created_message, targets)
+                    lambda: self._redirect_message(
+                        created_message, targets, j.get("overrides", None)
+                    )
                 )
         return created_message
 
