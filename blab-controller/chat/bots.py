@@ -395,7 +395,7 @@ class WebSocketExternalBot(Bot):
     def receive_message(self, message: ChatMessage) -> None:
         if (
             message.type == Message.MessageType.SYSTEM
-            and message.text == Message.SystemEvent.JOINED
+            and message.event == Message.SystemEvent.JOINED
             and message.additional_metadata["participant_id"]
             == self.conversation_info.bot_participant_id
         ):
