@@ -20,7 +20,9 @@ from .tasks import deliver_message_to_bot, deliver_status_to_bot
     sender=Participant,
     dispatch_uid="consumer_participant_watcher",
 )
-def _participant_watcher(sender: Any, instance: Participant, **kwargs: Any) -> None:
+def _participant_watcher(
+    sender: Any, instance: Participant, **kwargs: Any  # noqa: ARG001
+) -> None:
     participants = {
         "participants": ParticipantSerializer(
             instance.conversation.participants.all(), many=True
@@ -44,7 +46,9 @@ def _participant_watcher(sender: Any, instance: Participant, **kwargs: Any) -> N
 
 # noinspection PyUnusedLocal
 @receiver([post_save], sender=Message, dispatch_uid="consumer_message_watcher")
-def _message_watcher(sender: Any, instance: Message, **kwargs: Any) -> None:
+def _message_watcher(
+    sender: Any, instance: Message, **kwargs: Any  # noqa: ARG001
+) -> None:
     if not transaction.get_connection().in_atomic_block:
         _message_watcher_function(instance)
     else:

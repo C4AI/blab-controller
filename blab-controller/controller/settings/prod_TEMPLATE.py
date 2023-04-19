@@ -39,7 +39,7 @@ Each key is the bot name, and the value is a 4-tuple
 # Setting any of the following values to 0 disables that type of file.
 
 CHAT_LIMITS.update(
-    **{
+    {
         "MAX_ATTACHMENT_SIZE": 15 * 2**20,
         # maximum size of an attachment (in bytes)
         "MAX_IMAGE_SIZE": 15 * 2**20,
@@ -182,4 +182,5 @@ if _ssl:
     SECURE_BROWSER_XSS_FILTER = True
 
 if not SECRET_KEY:
-    raise ImproperlyConfigured("Environment variable SECRET_KEY not set or empty")
+    error = "Environment variable SECRET_KEY not set or empty"
+    raise ImproperlyConfigured(error)

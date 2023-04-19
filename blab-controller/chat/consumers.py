@@ -25,15 +25,19 @@ def _conversation_id_to_group_name(
     """Return the Websocket group name correspondent to a conversation.
 
     Args:
+    ----
         conversation_id: id of the conversation
         only_participant: if present, return the name of a group that contains
             only the specified participant
         without_bots: if True, return the name of a group that does not contain bots
 
     Returns:
+    -------
         the group name
     """
-    assert only_participant is None or not without_bots
+    if not (only_participant is None or not without_bots):
+        error = "only_participant and without_bots are mutually exclusive"
+        raise ValueError(error)
     suffix = ""
     if only_participant:
         suffix = "_" + str(only_participant)
@@ -113,6 +117,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         """Deliver message to this participant.
 
         Args:
+        ----
             event: message represented as a dictionary
         """
         await self.send(text_data=json.dumps({"message": event["message"]}))
@@ -121,6 +126,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         """Deliver state data to this participant.
 
         Args:
+        ----
             event: state represented as a dictionary
         """
         await self.send(text_data=json.dumps({"state": event["state"]}))
@@ -130,6 +136,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         """Deliver state data to all participants.
 
         Args:
+        ----
             conversation_id: id of the conversation
             state: state represented as a dictionary
         """
@@ -145,6 +152,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         """Send a message to all participants, possibly excluding bots.
 
         Args:
+        ----
             message: message to be sent
             only_human: do not send message to bots
         """
@@ -167,6 +175,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         """Deliver a message only to a bot.
 
         Args:
+        ----
             message: message to be delivered
             bot_name_or_participant_id: bot name or the id of the participant
             field_overrides: dict from field names to the values that should
@@ -185,16 +194,21 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             .filter(q)
             .first()
         )()
-        await get_channel_layer().group_send(
-            _conversation_id_to_group_name(message.conversation.id, bot.id),
-            {"type": "deliver_message", "message": {**data, **(field_overrides or {})}},
-        )
+        if bot:
+            await get_channel_layer().group_send(
+                _conversation_id_to_group_name(message.conversation.id, bot.id),
+                {
+                    "type": "deliver_message",
+                    "message": {**data, **(field_overrides or {})},
+                },
+            )
 
     @classmethod
     async def deliver_message_to_bot_manager(cls, message: Message) -> None:
         """Deliver a message to the bot manager.
 
         Args:
+        ----
             message: message to be sent
         """
         await cls.deliver_message_to_bot(message, settings.CHAT_BOT_MANAGER)
@@ -236,4 +250,4 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             )()
 
 
-__all__ = [ConversationConsumer]
+__all__ = ["ConversationConsumer"]

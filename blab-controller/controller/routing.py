@@ -5,7 +5,7 @@ from channels.sessions import SessionMiddlewareStack
 
 application = ProtocolTypeRouter(
     {
-        'websocket': SessionMiddlewareStack(
+        "websocket": SessionMiddlewareStack(
             URLRouter(chat.routing.websockets_urlpatterns)
         ),
     }

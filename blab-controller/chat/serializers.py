@@ -1,5 +1,6 @@
 """Contains serialising routines."""
-from typing import Any, Callable, cast
+from collections.abc import Callable
+from typing import Any, cast
 
 from django.conf import settings
 from django.db import transaction
@@ -38,9 +39,11 @@ class ConversationOnListSerializer(ModelSerializer):
         """Count the number of participants in the conversation.
 
         Args:
+        ----
             conversation: the conversation
 
         Returns:
+        -------
             how many participants there are in the conversation
         """
         return cast(int, conversation.participants.count())
@@ -49,9 +52,11 @@ class ConversationOnListSerializer(ModelSerializer):
         """Return the participant id of the user in the conversation.
 
         Args:
+        ----
             conversation: the conversation
 
         Returns:
+        -------
             the participant id in the conversation, or `None` if the
             session is not connected to the conversation
         """
@@ -93,9 +98,11 @@ class ConversationSerializer(ModelSerializer):
         """Return the participant id of the user in the conversation.
 
         Args:
+        ----
             conversation: the conversation
 
         Returns:
+        -------
             the participant id in the conversation, or `None` if the
             session is not connected to the conversation
         """
@@ -124,6 +131,7 @@ class ConditionalFields:
         """Add a field name and its condition.
 
         Args:
+        ----
             field_name: name of the field
             condition: function that returns whether the field should be used
                 for a given instance
@@ -133,7 +141,7 @@ class ConditionalFields:
     def __getitem__(
         self, field_name: str
     ) -> Callable[[Message | dict[str, Any]], bool]:
-        return self._conditions.get(field_name, lambda m: True)
+        return self._conditions.get(field_name, lambda _m: True)
 
 
 def _only_type(t: str) -> Callable[[Message | dict[str, Any]], bool]:
@@ -290,9 +298,11 @@ class MessageSerializer(ModelSerializer):
         """Return the URL to download the attached file.
 
         Args:
+        ----
             message: the instance being serialised
 
         Returns:
+        -------
             the attachment URL, or ``None``
             if this message does not have an attached file
         """
@@ -305,7 +315,8 @@ class MessageSerializer(ModelSerializer):
     def get_sent_by_human(self, message: Message) -> bool:
         """Return True if the message sender is human.
 
-        Returns:
+        Returns
+        -------
             True if the message was sent by a person, False otherwise
         """
         return message.sent_by_human()
@@ -314,9 +325,11 @@ class MessageSerializer(ModelSerializer):
         """Return the original name of the attached file.
 
         Args:
+        ----
             message: the instance being serialised
 
         Returns:
+        -------
             the attachment name, or ``None``
             if this message does not have an attached file
         """
@@ -332,9 +345,11 @@ class MessageSerializer(ModelSerializer):
         """Return additional metadata (only for system messages).
 
         Args:
+        ----
             message: the instance being serialised
 
         Returns:
+        -------
             the additional metadata of the system message, or ``None``
             if this is not a system message
         """
@@ -365,9 +380,8 @@ class MessageSerializer(ModelSerializer):
                 case _:
                     limit = 0
             if f.size > limit:
-                raise APIException(
-                    f"MAX = {limit}", status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
-                )
+                error = f"MAX = {limit}"
+                raise APIException(error, status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
 
         with transaction.atomic():
             message = Message.objects.create(**validated_data)
@@ -388,10 +402,10 @@ class MessageSerializer(ModelSerializer):
         if quoted_message_m_id:
             try:
                 quoted_message = Message.objects.get(m_id=quoted_message_m_id)
-            except Message.DoesNotExist:
+            except Message.DoesNotExist as e:
                 raise ValidationError(
                     {"quoted_message_id": ["The quoted message does not exist."]}
-                )
+                ) from e
         d["quoted_message_id"] = quoted_message.id if quoted_message else None
 
         if _only_with_file(data):
@@ -408,7 +422,7 @@ class MessageSerializer(ModelSerializer):
         d["options"] = []
         d["approval_status"] = data.get("approval_status", Message.ApprovalStatus.NO)
         for i, o in enumerate(data.get("options", None) or []):
-            d["options"].append(dict(option_text=str(o), position=i + 1))
+            d["options"].append({"option_text": str(o), "position": i + 1})
         return d
 
     @overrides
@@ -418,7 +432,7 @@ class MessageSerializer(ModelSerializer):
         for f in delete:
             result.pop(f, None)
         if "options" in result:
-            result["options"] = list(map(lambda o: o["option_text"], result["options"]))
+            result["options"] = [o["option_text"] for o in result["options"]]
         return result
 
     class Meta:
@@ -451,12 +465,15 @@ class MessageSerializer(ModelSerializer):
         """Create a message and save it to the database.
 
         Args:
+        ----
             message_data: message parameters and data
 
         Raises:
+        ------
             ValidationError: if validation fails
 
         Returns:
+        -------
             the new instance of :cls:`Message` if it was saved successfully,
             or ``None`` if it was not saved because it is duplicate (same
             ``local_id`` and sender as an existing message).
@@ -468,7 +485,7 @@ class MessageSerializer(ModelSerializer):
         except ValidationError as e:
             err = getattr(e, "error_dict", {}).get("__all__", [])
             if len(err) == 1 and getattr(err[0], "code", None) == "unique_together":
-                chk = getattr(err[0], "params", {}).get("unique_check", tuple())
+                chk = getattr(err[0], "params", {}).get("unique_check", ())
                 if set(chk) == {"conversation", "sender", "local_id"}:
                     # Ignore duplicate message
                     return None

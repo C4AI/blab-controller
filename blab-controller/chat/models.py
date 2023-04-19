@@ -38,6 +38,9 @@ class Conversation(models.Model):
         verbose_name = gettext("conversation")
         verbose_name_plural = gettext("conversations")
 
+    def __str__(self) -> str:
+        return f"Conversation(id={self.id})"
+
 
 class Participant(models.Model):
     """Represents a chat participant (person or bot)."""
@@ -85,11 +88,12 @@ class Participant(models.Model):
         verbose_name = gettext("participant")
         verbose_name_plural = gettext("participants")
 
+    def __str__(self) -> str:
+        return self.__repr__()
+
     def __repr__(self) -> str:
         # noinspection PyTypeChecker
         return f"Participant({self.id}, name={shlex.quote(self.name)})"
-
-    __str__ = __repr__
 
 
 def _attachment_name(m: "Message", _fn: str) -> str:
@@ -308,32 +312,6 @@ class Message(models.Model):
     # The field above can be used to tell whether the message was actually sent by
     # the associated participant.
 
-    @overrides
-    def clean(self) -> None:
-        super().clean()
-        # hasattr check is necessary, otherwise Django throws an exception
-        # if the member does not exist
-        sender = getattr(self, "sender", None) if hasattr(self, "sender") else None
-        if self.type == Message.MessageType.SYSTEM:
-            if sender:
-                raise ValidationError("system message must not have a sender")
-        else:
-            if not sender:
-                raise ValidationError("non-system message must have a sender")
-            if sender not in self.conversation.participants.all():
-                raise ValidationError("sender is a participant in the conversation")
-
-    def sent_by_human(self) -> bool:
-        """Check if this message was sent by a person.
-
-        Returns:
-            `True` if and only if the message was sent by a human user
-        """
-        return (
-            self.type != Message.MessageType.SYSTEM
-            and self.sender.type == Participant.HUMAN
-        )
-
     class Meta:
         verbose_name = gettext("message")
         verbose_name_plural = gettext("messages")
@@ -342,6 +320,40 @@ class Message(models.Model):
                 fields=["conversation", "sender", "local_id"], name="local_id_unique"
             )
         ]
+
+    def __str__(self) -> str:
+        text = self.text
+        return f"Message(id={self.id}, {text=})"
+
+    @overrides
+    def clean(self) -> None:
+        super().clean()
+        # hasattr check is necessary, otherwise Django throws an exception
+        # if the member does not exist
+        sender = getattr(self, "sender", None) if hasattr(self, "sender") else None
+        if self.type == Message.MessageType.SYSTEM:
+            if sender:
+                error = "system message must not have a sender"
+                raise ValidationError(error)
+        else:
+            if not sender:
+                error = "non-system message must have a sender"
+                raise ValidationError(error)
+            if sender not in self.conversation.participants.all():
+                error = "sender is a participant in the conversation"
+                raise ValidationError(error)
+
+    def sent_by_human(self) -> bool:
+        """Check if this message was sent by a person.
+
+        Returns
+        -------
+            `True` if and only if the message was sent by a human user
+        """
+        return (
+            self.type != Message.MessageType.SYSTEM
+            and self.sender.type == Participant.HUMAN
+        )
 
 
 class MessageOption(models.Model):
@@ -368,3 +380,8 @@ class MessageOption(models.Model):
 
     class Meta:
         ordering = ["position"]
+
+    def __str__(self) -> str:
+        option_text, position = self.option_text, self.position
+        message_id = self.message.id
+        return f"MessageOption({option_text=}, {position=}, {message_id=})"

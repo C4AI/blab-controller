@@ -215,7 +215,7 @@ structlog.configure(
     ],
     context_class=structlog.threadlocal.wrap_dict(dict),
     logger_factory=structlog.stdlib.LoggerFactory(),
-    wrapper_class=structlog.stdlib.BoundLogger,  # noqa
+    wrapper_class=structlog.stdlib.BoundLogger,
     cache_logger_on_first_use=True,
 )
 
@@ -242,6 +242,7 @@ def internal_bot(
     This is a convenience method.
 
     Args:
+    ----
         package: the package that contains the bot class
         class_name: the bot class that extends Bot (bots.py)
         args: positional arguments to be passed to the bot's constructor
@@ -249,6 +250,7 @@ def internal_bot(
         kwargs: keyword arguments to be passed to the bot's constructor
 
     Returns:
+    -------
         a tuple: (package, class_name, args, kwargs)
     """
     return package, class_name, args or [], kwargs or {}
@@ -258,11 +260,13 @@ def websocket_external_bot(*, url: str) -> tuple[str, str, list[Any], dict[str, 
     """Return a tuple with information to run a WebSocketExternalBot.
 
     Args:
+    ----
         url: a full HTTP/HTTPS address (with protocol, hostname, optional port and path,
             e.g. "https://www.example.com:8080/path") at which the external bot will
             be listening to POST requests
 
     Returns:
+    -------
         a tuple (package, class_name, args, kwargs)
     """
     return "chat.bots", "WebSocketExternalBot", [url], {}

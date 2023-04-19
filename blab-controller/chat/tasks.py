@@ -1,6 +1,7 @@
 """Contains Celery tasks."""
 
-from typing import Any, Callable, NamedTuple
+from collections.abc import Callable
+from typing import Any, NamedTuple
 
 from celery import shared_task
 
@@ -25,6 +26,7 @@ def deliver_message_to_bot(
     """Send a message to a bot.
 
     Args:
+    ----
         bot_participant_id: id of the participant that
             corresponds to this bot in this conversation
         message_id: id of the message that is being sent
@@ -44,6 +46,7 @@ def deliver_status_to_bot(status: dict[str, Any], bot_participant_id: str) -> No
     """Send status information to a bot.
 
     Args:
+    ----
         status: the status update to be sent
         bot_participant_id: id of the participant that
             corresponds to this bot in this conversation

@@ -1,7 +1,9 @@
 """Views for conversations, messages and other related entities."""
 from collections import namedtuple
+from collections.abc import Iterable, Mapping
+from contextlib import suppress
 from datetime import datetime, timezone
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 from django.conf import settings
 from django.db.models import Model
@@ -51,13 +53,12 @@ class ConversationViewSet(
         a = getattr(self, "action", None)
         if a == "list":
             return ConversationOnListSerializer
-        else:
-            return ConversationSerializer
+        return ConversationSerializer
 
     @overrides
     def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         if not getattr(settings, "CHAT_ENABLE_ROOMS", False):
-            raise PermissionDenied()
+            raise PermissionDenied
         return super().list(request, *args, **kwargs)
 
     @overrides
@@ -70,10 +71,10 @@ class ConversationViewSet(
             if existing:
                 try:
                     Participant.objects.get(pk=existing)
-                except Model.DoesNotExist:
-                    raise PermissionDenied()
+                except Model.DoesNotExist as e:
+                    raise PermissionDenied from e
             else:
-                raise PermissionDenied()
+                raise PermissionDenied
 
         return super().retrieve(request, *args, **kwargs)
 
@@ -86,7 +87,8 @@ class ConversationViewSet(
             or ""
         )
         if not isinstance(nickname, str):
-            raise ValidationError("nickname must be a string")
+            error = "nickname must be a string"
+            raise ValidationError(error)
 
         bots_key = "bots"
         bots = self.request.data.get(bots_key, [])
@@ -113,14 +115,17 @@ class ConversationViewSet(
         """Join a conversation.
 
         Raises:
+        ------
             ValidationError: if some validation fails
             PermissionDenied: if the user tries to join someone else's conversation
 
         Args:
+        ----
             request: the HTTP request
             pk: not used
 
         Returns:
+        -------
             the HTTP response
         """
         conversation_id = str(self.get_object().id)
@@ -133,20 +138,19 @@ class ConversationViewSet(
             or ""
         )
         if not isinstance(nickname, str):
-            raise ValidationError("nickname must be a string")
+            error = "nickname must be a string"
+            raise ValidationError(error)
 
         existing = self.request.session.setdefault(
             "participation_in_conversation", {}
         ).get(conversation_id, None)
         p = None
         if existing:
-            try:
+            with suppress(Model.DoesNotExist):
                 p = Participant.objects.get(pk=existing)
-            except Model.DoesNotExist:
-                pass
         if not p:
             if not getattr(settings, "CHAT_ENABLE_ROOMS", False):
-                raise PermissionDenied()
+                raise PermissionDenied
             p = Chat.get_chat(self.get_object().id).join(nickname)
         participant_id = str(p.id)
         log = log.bind(participant_id=participant_id)
@@ -172,7 +176,7 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewS
         log.info("trying to register sent message")
         participant = self._get_participant()
         if not participant:
-            raise PermissionDenied()
+            raise PermissionDenied
 
         data: Mapping[str, Any] = request.data
         if isinstance(data, QueryDict):
@@ -209,7 +213,7 @@ class ConversationMessagesViewSet(CreateModelMixin, ListModelMixin, GenericViewS
     def get_queryset(self) -> Iterable[Message]:
         conversation_id = str(self.kwargs["conversation_id"])
         if not self._get_participant():
-            raise PermissionDenied()
+            raise PermissionDenied
         q = Message.objects.filter(conversation_id=conversation_id).filter(
             approval_status__gt=0
         )
@@ -260,9 +264,11 @@ class BotListSerializer(Serializer):
         """Return the list of bots given in the argument.
 
         Args:
+        ----
             bots: list of bots
 
         Return:
+        ------
             the same list (this is an identity function)
         """
         return bots
@@ -282,11 +288,13 @@ class BotsViewSet(APIView):
         """Return the list of bots.
 
         Args:
+        ----
             request: ignored
             args: ignored
             kwargs: ignored
 
         Return:
+        ------
             a list of bot names
         """
         return Response(BotListSerializer(list(all_bots().keys())).data)
@@ -303,11 +311,13 @@ class LimitsViewSet(APIView):
         """Return the chat limits.
 
         Args:
+        ----
             request: ignored
             args: ignored
             kwargs: ignored
 
         Return:
+        ------
             a dictionary mapping file types to the maximum number of bytes
         """
         data = ChatLimitsSerializer(settings.CHAT_LIMITS).data

@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 import json
 from importlib import import_module
-from typing import Any, Callable, NamedTuple, TypedDict, cast
+from typing import Any, NamedTuple, TypedDict, cast
 from uuid import UUID
 
+from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
@@ -55,17 +61,18 @@ class Chat:
     _all_chats = {}
 
     def __init__(self, conversation: Conversation):
-        """
-        .
+        """Create an instance.
 
         Args:
+        ----
             conversation: Conversation instance
         """
         self.conversation: Conversation = conversation
 
         conversation_id = str(self.conversation.id)
         if str(conversation_id) in self.__class__._all_chats:
-            raise ValueError("Chat instance already created for this conversation")
+            error = "Chat instance already created for this conversation"
+            raise ValueError(error)
         self.__class__._all_chats[str(conversation_id)] = self
         self.log = logger.bind(conversation_id=conversation_id)
 
@@ -82,11 +89,13 @@ class Chat:
         A new instance of Chat is created and stored.
 
         Args:
+        ----
             nickname: name of the user who created the conversation
             bots: list of bot names to invite to the conversation
             conversation: the Conversation instance
 
         Return:
+        ------
             the list of participants in the conversation
             (the human participant is the first entry)
         """
@@ -100,10 +109,12 @@ class Chat:
         has been created and the participants have joined it.
 
         Args:
+        ----
             nickname: name of the user who created the conversation
             bots: list of bot names to invite to the conversation
 
         Return:
+        ------
             the list of participants in the conversation
             (the human participant is the first entry)
         """
@@ -157,9 +168,11 @@ class Chat:
         """Create a message indicating that a participant has joined the conversation.
 
         Args:
+        ----
             participant_id: id of the participant
 
         Return:
+        ------
             the created message
         """
         message = Message.objects.create(
@@ -185,20 +198,21 @@ class Chat:
         return participant
 
     def join(self, nickname: str) -> Participant:
-        """Create a Participant instance when a human user joins an existing conversation.
+        """Create a Participant instance when a human user joins a conversation.
 
         This method creates the participant instance and generates a system message
         indicating that it have joined the conversation.
 
         Args:
+        ----
             nickname: name of the user who joined the conversation
 
         Returns:
+        -------
             the new participant instance corresponding to the participant who joined
         """
         self.log.debug("creating participant for user", nickname=nickname)
-        participant = self._create_human_participant(nickname)
-        return participant
+        return self._create_human_participant(nickname)
 
     def save_message(
         self, participant: Participant, message_data: dict[str, Any]
@@ -206,14 +220,17 @@ class Chat:
         """Store a message sent by a human or bot.
 
         Args:
+        ----
             participant: the sender
             message_data: mesesage data as a dictionary
 
         Returns:
+        -------
             the created Message instance
         """
         if participant.conversation.id != self.conversation.id:
-            raise ValueError("This participant belongs to another conversation")
+            error = "This participant belongs to another conversation"
+            raise ValueError(error)
 
         manager = getattr(settings, "CHAT_BOT_MANAGER", None)
         if participant.type == Participant.HUMAN or not manager:
@@ -240,7 +257,7 @@ class Chat:
             except json.decoder.JSONDecodeError:
                 j = None
             if not isinstance(j, dict):
-                self.log.warn(
+                self.log.warning(
                     "ignoring malformed message from manager bot", command=command
                 )
                 j = {}
@@ -265,7 +282,7 @@ class Chat:
                 except Participant.DoesNotExist:
                     principal = None
                 if not principal:
-                    self.log.warn(
+                    self.log.warning(
                         "ignoring message that the manager bot tried to send by proxy "
                         "on behalf of another participant",
                         on_behalf_of=on_behalf_of,
@@ -287,7 +304,7 @@ class Chat:
                 case "approve":
 
                     if not quoted_message:
-                        self.log.warn(
+                        self.log.warning(
                             "manager bot tried to approve a non-existent message",
                             approved_message_id=quoted_message_id,
                         )
@@ -302,7 +319,7 @@ class Chat:
                         quoted_message.save()
                 case "redirect":
                     if not quoted_message:
-                        self.log.warn(
+                        self.log.warning(
                             "manager bot tried to redirect a non-existent message",
                             redirected_message_id=quoted_message_id,
                         )
@@ -317,7 +334,7 @@ class Chat:
                         self._redirect_message(quoted_message, targets, field_overrides)
                 case _:
                     if action:
-                        self.log.warn(
+                        self.log.warning(
                             "ignoring unknown action from manager bot", action=action
                         )
         else:
@@ -358,7 +375,7 @@ class Chat:
 
         for part in targets:
             # if bot uses WebSockets
-            ConversationConsumer.deliver_message_to_bot(
+            async_to_sync(ConversationConsumer.deliver_message_to_bot)(
                 message,
                 part,
                 field_overrides=field_overrides,
@@ -397,17 +414,21 @@ class Chat:
         """Deliver a message only to the specified bot.
 
         Args:
+        ----
             message: the message to be delivered
             bot: the bot which will receive the message
             field_overrides: dict from field names to the values that
                 should replace the actual values
         """
         if bot.conversation.id != self.conversation.id:
-            raise ValueError("Participant is not in the conversation")
+            error = "Participant is not in the conversation"
+            raise ValueError(error)
         if message.conversation.id != self.conversation.id:
-            raise ValueError("Message is not in the conversation")
+            error = "Message is not in the conversation"
+            raise ValueError(error)
         if bot.type != Participant.BOT:
-            raise ValueError("Participant is not a bot")
+            error = "Participant is not a bot"
+            raise ValueError(error)
         bot = _get_bot(all_bots()[bot.name], bot.id, bot.conversation.id)
         message_data = {
             **MessageSerializer().to_representation(message),
@@ -419,13 +440,16 @@ class Chat:
         """Deliver status only to the specified bot.
 
         Args:
+        ----
             status: the status information to be delivered
             bot: the bot which will receive the message
         """
         if bot.conversation.id != self.conversation.id:
-            raise ValueError("Participant is not in the conversation")
+            error = "Participant is not in the conversation"
+            raise ValueError(error)
         if bot.type != Participant.BOT:
-            raise ValueError("Participant is not a bot")
+            error = "Participant is not a bot"
+            raise ValueError(error)
         bot = _get_bot(all_bots()[bot.name], bot.id, bot.conversation.id)
         bot.update_status(status)
 
@@ -434,9 +458,11 @@ class Chat:
         """Obtain a Chat instance for a given conversation.
 
         Args:
+        ----
             conversation_id: id of the conversation
 
         Return:
+        ------
             a Chat instance if it exists for the given conversation id,
             of None if it does not exist
         """

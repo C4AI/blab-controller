@@ -6,8 +6,8 @@ from overrides import overrides
 class ChatConfig(AppConfig):
     """Chat configuration."""
 
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'chat'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "chat"
 
     @overrides
     def ready(self) -> None:

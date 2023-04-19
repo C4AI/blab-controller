@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 import json
 import re
 from dataclasses import dataclass, fields
@@ -9,7 +14,6 @@ from datetime import datetime
 from http.client import HTTPConnection, HTTPSConnection
 from operator import attrgetter
 from time import sleep
-from typing import Any, Callable, Protocol
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -58,9 +62,11 @@ class ChatMessage:
         """Create an instance from a dict.
 
         Args:
+        ----
             d: the serialized data
 
         Returns:
+        -------
             a ChatMessage instance with the data in d
         """
         supported_fields = set(map(attrgetter("name"), fields(cls)))
@@ -74,6 +80,7 @@ class Bot:
         """.
 
         Args:
+        ----
             conversation_info: conversation data
         """
         self.conversation_info = conversation_info
@@ -87,6 +94,7 @@ class Bot:
         themselves or other bots.
 
         Args:
+        ----
             message: the received message
         """
 
@@ -96,6 +104,7 @@ class Bot:
         Example: the information that the list of participants has changed.
 
         Args:
+        ----
             status: the status update
         """
 
@@ -152,9 +161,11 @@ class CalculatorBot(Bot):
         """Compute the result of a simple mathematical expression.
 
         Args:
+        ----
             expression: the expression to evaluate
 
         Returns:
+        -------
             the calculated result, or "?" if there are errors
         """
         invalid_output = "?"
@@ -167,21 +178,21 @@ class CalculatorBot(Bot):
         if not all(
             isinstance(
                 node,
-                (
-                    ast.Expression,
-                    ast.Num,
-                    ast.UnaryOp,
-                    ast.unaryop,
-                    ast.BinOp,
-                    ast.operator,
-                ),
+                ast.Expression
+                | ast.Num
+                | ast.UnaryOp
+                | ast.unaryop
+                | ast.BinOp
+                | ast.operator,
             )
             for node in ast.walk(parsed_tree)
         ):
             # it would not be safe if nodes of other types were allowed
             return invalid_output
         try:
-            result = eval(compile(parsed_tree, filename="", mode="eval"))
+            result = eval(  # noqa: PGH001
+                compile(parsed_tree, filename="", mode="eval")
+            )
         except ArithmeticError:
             return invalid_output
         else:
@@ -194,29 +205,32 @@ def manager_redirection(
     """Return a string that indicates the bots that will receive a given message.
 
     Args:
+    ----
         bot_names_or_participants_ids: the names or ids of the bots
         field_overrides: dict from field names to the values that should
             replace the actual values
 
     Returns:
+    -------
         a JSON-serialised redirection command
     """
     return json.dumps(
-        dict(
-            action="redirect",
-            bots=bot_names_or_participants_ids,
-            overrides=field_overrides or {},
-        )
+        {
+            "action": "redirect",
+            "bots": bot_names_or_participants_ids,
+            "overrides": field_overrides or {},
+        }
     )
 
 
 def manager_approval() -> str:
     """Return a string that indicates that a message has been approved.
 
-    Returns:
+    Returns
+    -------
         a JSON-serialised approval command
     """
-    return json.dumps(dict(action="approve"))
+    return json.dumps({"action": "approve"})
 
 
 class TransparentManagerBot(Bot):
@@ -285,14 +299,12 @@ class CalcOrEchoManagerBot(Bot):
                 result = manager_approval()
             else:
                 return
+        elif re.match(r"^[0-9+\-*/ ().]+$", message.text):
+            # looks like an expression -> send to calculator
+            result = manager_redirection(self.calculator_bot_name)
         else:
-            # sent by human
-            if re.match(r"^[0-9+\-*/ ().]+$", message.text):
-                # looks like an expression -> send to calculator
-                result = manager_redirection(self.calculator_bot_name)
-            else:
-                # not an expression -> send to upper-case ECHO
-                result = manager_redirection(self.echo_bot_name)
+            # not an expression -> send to upper-case ECHO
+            result = manager_redirection(self.echo_bot_name)
         self.conversation_info.send_function(
             {
                 "type": Message.MessageType.TEXT,
@@ -357,16 +369,13 @@ class PreSelectManagerBot(Bot):
 
                 else:  # invalid answer, re-send greeting
                     result_msg = greeting
+            elif (message.text or "").upper().strip() == self.exit_word.upper().strip():
+                PreSelectManagerBot.bot_in_conversation.pop(
+                    self.conversation_info.conversation_id, None
+                )
+                result_msg = greeting
             else:
-                if (
-                    message.text or ""
-                ).upper().strip() == self.exit_word.upper().strip():
-                    PreSelectManagerBot.bot_in_conversation.pop(
-                        self.conversation_info.conversation_id, None
-                    )
-                    result_msg = greeting
-                else:
-                    result_msg = {"command": manager_redirection(current_bot)}
+                result_msg = {"command": manager_redirection(current_bot)}
         if result_msg:
             self.conversation_info.send_function(
                 {
@@ -385,6 +394,7 @@ class WebSocketExternalBot(Bot):
         """.
 
         Args:
+        ----
             conversation_info: conversation data
             trigger_url: HTTP URL to be requested for every new conversation
         """
@@ -437,7 +447,8 @@ class WebSocketExternalBot(Bot):
 def all_bots() -> dict[str, tuple[str, str, list[Any], dict[Any, Any]]]:
     """Return all installed bots.
 
-    Returns:
+    Returns
+    -------
         list of installed bots
     """
     from django.conf import settings

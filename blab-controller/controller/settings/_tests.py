@@ -1,3 +1,3 @@
 """Settings used in a test environment."""
 
-from .dev_base import *  # noqa: F401
+from .dev_base import *
