@@ -2,6 +2,7 @@
 
 import shlex
 import uuid
+from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -326,6 +327,22 @@ class Message(models.Model):
         return f"Message(id={self.id}, {text=})"
 
     @overrides
+    def save(
+        self,
+        force_insert: bool = False,
+        force_update: bool = False,
+        using: Any = None,
+        update_fields: Any | None = None,
+    ) -> Any | None:
+        self.full_clean()
+        return super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
+
+    @overrides
     def clean(self) -> None:
         super().clean()
         # hasattr check is necessary, otherwise Django throws an exception
@@ -340,7 +357,7 @@ class Message(models.Model):
                 error = "non-system message must have a sender"
                 raise ValidationError(error)
             if sender not in self.conversation.participants.all():
-                error = "sender is a participant in the conversation"
+                error = "sender is not a participant in the conversation"
                 raise ValidationError(error)
 
     def sent_by_human(self) -> bool:

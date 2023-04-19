@@ -1,1 +1,0 @@
-"""BLAB Controller - root package."""
