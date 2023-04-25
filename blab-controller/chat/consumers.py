@@ -225,6 +225,22 @@ class ConversationConsumer(AsyncWebsocketConsumer):
             approval_status=Message.ApprovalStatus.AUTOMATICALLY_APPROVED,
         )
         await database_sync_to_async(msg.save)()
+        if self.participant.is_required:
+            logger.info(
+                "a required bot has left the conversation",
+                conversation_id=self.conversation_id,
+                bot_participant_id=self.participant.id,
+            )
+            msg = await database_sync_to_async(Message.objects.create)(
+                type=Message.MessageType.SYSTEM,
+                conversation_id=self.conversation_id,
+                text=Message.SystemEvent.ENDED,
+                additional_metadata={
+                    "participant_id": str(self.participant.id),
+                },
+                approval_status=Message.ApprovalStatus.AUTOMATICALLY_APPROVED,
+            )
+            await database_sync_to_async(msg.save)()
 
         participants = await database_sync_to_async(
             lambda: ParticipantSerializer(

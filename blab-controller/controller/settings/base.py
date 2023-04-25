@@ -234,9 +234,10 @@ def internal_bot(
     *,
     package: str,
     class_name: str,
+    required: bool = False,
     args: list[Any] | None = None,
     kwargs: dict[str, Any] | None = None,
-) -> tuple[str, str, list[Any], dict[str, Any]]:
+) -> tuple[str, str, bool, list[Any], dict[str, Any]]:
     """Return a tuple with the given arguments.
 
     This is a convenience method.
@@ -245,6 +246,7 @@ def internal_bot(
     ----
         package: the package that contains the bot class
         class_name: the bot class that extends Bot (bots.py)
+        required: whether the bot is essential to the conversation
         args: positional arguments to be passed to the bot's constructor
             after conversation_info
         kwargs: keyword arguments to be passed to the bot's constructor
@@ -253,10 +255,12 @@ def internal_bot(
     -------
         a tuple: (package, class_name, args, kwargs)
     """
-    return package, class_name, args or [], kwargs or {}
+    return package, class_name, required, args or [], kwargs or {}
 
 
-def websocket_external_bot(*, url: str) -> tuple[str, str, list[Any], dict[str, Any]]:
+def websocket_external_bot(
+    *, url: str, required: bool = False
+) -> tuple[str, str, bool, list[Any], dict[str, Any]]:
     """Return a tuple with information to run a WebSocketExternalBot.
 
     Args:
@@ -264,12 +268,13 @@ def websocket_external_bot(*, url: str) -> tuple[str, str, list[Any], dict[str, 
         url: a full HTTP/HTTPS address (with protocol, hostname, optional port and path,
             e.g. "https://www.example.com:8080/path") at which the external bot will
             be listening to POST requests
+        required: whether the bot is essential to the conversation
 
     Returns:
     -------
         a tuple (package, class_name, args, kwargs)
     """
-    return "chat.bots", "WebSocketExternalBot", [url], {}
+    return "chat.bots", "WebSocketExternalBot", required, [url], {}
 
 
 # Chat limits

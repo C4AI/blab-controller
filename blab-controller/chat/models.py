@@ -85,6 +85,12 @@ class Participant(models.Model):
         help_text=gettext("the conversation to which the participant belongs"),
     )
 
+    is_required = models.BooleanField(
+        gettext("is required"),
+        help_text=gettext("whether the participant is essential to the conversation"),
+        default=False,
+    )
+
     class Meta:
         verbose_name = gettext("participant")
         verbose_name_plural = gettext("participants")
