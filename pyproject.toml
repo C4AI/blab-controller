@@ -8,7 +8,7 @@ force-exclude = '[^/]*/migrations/[^/]*.py'
 [tool.poetry]
 name = "blab-controller"
 version = "0.0.1dev"
-description = ""
+description = "The back-end server upon which BLAB is built."
 authors = ["C4AI"]
 readme = "README.md"
 
@@ -64,11 +64,19 @@ optional = true
 cx-Oracle = "^8.3.0"
 
 
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^7.0.1"
+sphinx-autoapi = "^2.1.0"
+furo = "^2023.5.20"
+
 [tool.ruff]
 select = ["F", "E", "W", "C90", "I", "N", "D", "UP", "YTT", "ANN", "S", "BLE", "B", "A", "C4", "T10", "DJ", "EM", "EXE", "ISC", "ICN", "ISC002", "ISC003", "ICN", "G", "INP", "PIE", "PYI", "PT", "Q", "RSE", "RET", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "PD", "PGH", "PL", "TRY", "NPY", "RUF"]
 ignore = ["ANN002", "ANN003", "ANN1", "ANN204", "ANN401", "ARG002", "A003", "D105", "D106", "D203", "D213", "D417", "DTZ", "I001", "TRY00"]
-exclude = ["blab-controller/chat/migrations"]
-per-file-ignores = { "blab-controller/controller/settings/*.py" = ["F401", "F403", "F405"], "test*.py" = ["D", "S101"], "*_TEMPLATE.py" = ["N999"], "manage.py" = ["INP001"] }
+exclude = ["blab_controller/chat/migrations"]
+per-file-ignores = { "blab_controller/controller/settings/*.py" = ["F401", "F403", "F405"], "test*.py" = ["D", "S101"], "*_TEMPLATE.py" = ["N999"], "manage.py" = ["INP001"] }
 
 [tool.ruff.pydocstyle]
 ignore-decorators = ["overrides.overrides"]

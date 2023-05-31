@@ -62,11 +62,9 @@ class ChatMessage:
         """Create an instance from a dict.
 
         Args:
-        ----
             d: the serialized data
 
         Returns:
-        -------
             a ChatMessage instance with the data in d
         """
         supported_fields = set(map(attrgetter("name"), fields(cls)))
@@ -80,7 +78,6 @@ class Bot:
         """.
 
         Args:
-        ----
             conversation_info: conversation data
         """
         self.conversation_info = conversation_info
@@ -94,7 +91,6 @@ class Bot:
         themselves or other bots.
 
         Args:
-        ----
             message: the received message
         """
 
@@ -104,7 +100,6 @@ class Bot:
         Example: the information that the list of participants has changed.
 
         Args:
-        ----
             status: the status update
         """
 
@@ -161,11 +156,9 @@ class CalculatorBot(Bot):
         """Compute the result of a simple mathematical expression.
 
         Args:
-        ----
             expression: the expression to evaluate
 
         Returns:
-        -------
             the calculated result, or "?" if there are errors
         """
         invalid_output = "?"
@@ -205,13 +198,11 @@ def manager_redirection(
     """Return a string that indicates the bots that will receive a given message.
 
     Args:
-    ----
         bot_names_or_participants_ids: the names or ids of the bots
         field_overrides: dict from field names to the values that should
             replace the actual values
 
     Returns:
-    -------
         a JSON-serialised redirection command
     """
     return json.dumps(
@@ -226,8 +217,7 @@ def manager_redirection(
 def manager_approval() -> str:
     """Return a string that indicates that a message has been approved.
 
-    Returns
-    -------
+    Returns:
         a JSON-serialised approval command
     """
     return json.dumps({"action": "approve"})
@@ -394,7 +384,6 @@ class WebSocketExternalBot(Bot):
         """.
 
         Args:
-        ----
             conversation_info: conversation data
             trigger_url: HTTP URL to be requested for every new conversation
         """
@@ -447,8 +436,7 @@ class WebSocketExternalBot(Bot):
 def all_bots() -> dict[str, tuple[str, str, list[Any], dict[Any, Any]]]:
     """Return all installed bots.
 
-    Returns
-    -------
+    Returns:
         list of installed bots
     """
     from django.conf import settings

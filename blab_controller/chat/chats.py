@@ -64,7 +64,6 @@ class Chat:
         """Create an instance.
 
         Args:
-        ----
             conversation: Conversation instance
         """
         self.conversation: Conversation = conversation
@@ -89,13 +88,11 @@ class Chat:
         A new instance of Chat is created and stored.
 
         Args:
-        ----
             nickname: name of the user who created the conversation
             bots: list of bot names to invite to the conversation
             conversation: the Conversation instance
 
-        Return:
-        ------
+        Returns:
             the list of participants in the conversation
             (the human participant is the first entry)
         """
@@ -109,12 +106,10 @@ class Chat:
         has been created and the participants have joined it.
 
         Args:
-        ----
             nickname: name of the user who created the conversation
             bots: list of bot names to invite to the conversation
 
-        Return:
-        ------
+        Returns:
             the list of participants in the conversation
             (the human participant is the first entry)
         """
@@ -171,11 +166,9 @@ class Chat:
         """Create a message indicating that a participant has joined the conversation.
 
         Args:
-        ----
             participant_id: id of the participant
 
-        Return:
-        ------
+        Returns:
             the created message
         """
         message = Message.objects.create(
@@ -207,11 +200,9 @@ class Chat:
         indicating that it have joined the conversation.
 
         Args:
-        ----
             nickname: name of the user who joined the conversation
 
         Returns:
-        -------
             the new participant instance corresponding to the participant who joined
         """
         self.log.debug("creating participant for user", nickname=nickname)
@@ -223,12 +214,10 @@ class Chat:
         """Store a message sent by a human or bot.
 
         Args:
-        ----
             participant: the sender
             message_data: mesesage data as a dictionary
 
         Returns:
-        -------
             the created Message instance
         """
         if participant.conversation.id != self.conversation.id:
@@ -417,7 +406,6 @@ class Chat:
         """Deliver a message only to the specified bot.
 
         Args:
-        ----
             message: the message to be delivered
             bot: the bot which will receive the message
             field_overrides: dict from field names to the values that
@@ -443,7 +431,6 @@ class Chat:
         """Deliver status only to the specified bot.
 
         Args:
-        ----
             status: the status information to be delivered
             bot: the bot which will receive the message
         """
@@ -461,11 +448,9 @@ class Chat:
         """Obtain a Chat instance for a given conversation.
 
         Args:
-        ----
             conversation_id: id of the conversation
 
-        Return:
-        ------
+        Returns:
             a Chat instance if it exists for the given conversation id,
             of None if it does not exist
         """

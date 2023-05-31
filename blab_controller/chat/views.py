@@ -115,17 +115,14 @@ class ConversationViewSet(
         """Join a conversation.
 
         Raises:
-        ------
             ValidationError: if some validation fails
             PermissionDenied: if the user tries to join someone else's conversation
 
         Args:
-        ----
             request: the HTTP request
             pk: not used
 
         Returns:
-        -------
             the HTTP response
         """
         conversation_id = str(self.get_object().id)
@@ -264,11 +261,9 @@ class BotListSerializer(Serializer):
         """Return the list of bots given in the argument.
 
         Args:
-        ----
             bots: list of bots
 
-        Return:
-        ------
+        Returns:
             the same list (this is an identity function)
         """
         return bots
@@ -288,13 +283,11 @@ class BotsViewSet(APIView):
         """Return the list of bots.
 
         Args:
-        ----
             request: ignored
             args: ignored
             kwargs: ignored
 
-        Return:
-        ------
+        Returns:
             a list of bot names
         """
         return Response(BotListSerializer(list(all_bots().keys())).data)
@@ -311,13 +304,11 @@ class LimitsViewSet(APIView):
         """Return the chat limits.
 
         Args:
-        ----
             request: ignored
             args: ignored
             kwargs: ignored
 
-        Return:
-        ------
+        Returns:
             a dictionary mapping file types to the maximum number of bytes
         """
         data = ChatLimitsSerializer(settings.CHAT_LIMITS).data

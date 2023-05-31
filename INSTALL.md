@@ -89,7 +89,7 @@ should be skipped in other environments.
 - Let Django create the database tables:
 
   ```shell
-  poetry run ./blab-controller/manage.py migrate
+  poetry run ./blab_controller/manage.py migrate
   ```
 
 - The admin interface will be in English. In order to enable the display of texts in other languages
@@ -97,21 +97,21 @@ should be skipped in other environments.
   `apt install gettext` as root), then run:
 
     ```shell
-    poetry run ./blab-controller/manage.py compilemessages
+    poetry run ./blab_controller/manage.py compilemessages
     ```
 
 - **(Only in development environments)** <br/>
   To start the development server, run:
 
   ```shell
-  poetry run ./blab-controller/run_DEV.sh
+  poetry run ./blab_controller/run_DEV.sh
   ```
 
   Then, open http://localhost:8000/api/chat/ to see the REST API (append `/_docs/` to see the OpenAPI description).
 
 - **(Only in production environments)** <br/> Generate the static files:
   ```shell
-  poetry run ./blab-controller/manage.py collectstatic
+  poetry run ./blab_controller/manage.py collectstatic
   ```
 
 - **(Only in production environments)** <br/>
@@ -255,12 +255,12 @@ should be skipped in other environments.
   - Let Django update the database tables:
 
     ```shell
-    poetry run ./blab-controller/manage.py migrate
+    poetry run ./blab_controller/manage.py migrate
     ```
     Generate the static files:
 
     ```shell
-    poetry run ./blab-controller/manage.py collectstatic
+    poetry run ./blab_controller/manage.py collectstatic
     ```
 
   - Restart Gunicorn:
@@ -274,5 +274,5 @@ should be skipped in other environments.
 - Create a super-user to access the admin interface:
 
     ```shell
-    poetry run ./blab-controller/manage.py createsuperuser
+    poetry run ./blab_controller/manage.py createsuperuser
     ```

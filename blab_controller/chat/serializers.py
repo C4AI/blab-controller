@@ -39,11 +39,9 @@ class ConversationOnListSerializer(ModelSerializer):
         """Count the number of participants in the conversation.
 
         Args:
-        ----
             conversation: the conversation
 
         Returns:
-        -------
             how many participants there are in the conversation
         """
         return cast(int, conversation.participants.count())
@@ -52,11 +50,9 @@ class ConversationOnListSerializer(ModelSerializer):
         """Return the participant id of the user in the conversation.
 
         Args:
-        ----
             conversation: the conversation
 
         Returns:
-        -------
             the participant id in the conversation, or `None` if the
             session is not connected to the conversation
         """
@@ -98,11 +94,9 @@ class ConversationSerializer(ModelSerializer):
         """Return the participant id of the user in the conversation.
 
         Args:
-        ----
             conversation: the conversation
 
         Returns:
-        -------
             the participant id in the conversation, or `None` if the
             session is not connected to the conversation
         """
@@ -131,7 +125,6 @@ class ConditionalFields:
         """Add a field name and its condition.
 
         Args:
-        ----
             field_name: name of the field
             condition: function that returns whether the field should be used
                 for a given instance
@@ -298,11 +291,9 @@ class MessageSerializer(ModelSerializer):
         """Return the URL to download the attached file.
 
         Args:
-        ----
             message: the instance being serialised
 
         Returns:
-        -------
             the attachment URL, or ``None``
             if this message does not have an attached file
         """
@@ -315,8 +306,7 @@ class MessageSerializer(ModelSerializer):
     def get_sent_by_human(self, message: Message) -> bool:
         """Return True if the message sender is human.
 
-        Returns
-        -------
+        Returns:
             True if the message was sent by a person, False otherwise
         """
         return message.sent_by_human()
@@ -325,11 +315,9 @@ class MessageSerializer(ModelSerializer):
         """Return the original name of the attached file.
 
         Args:
-        ----
             message: the instance being serialised
 
         Returns:
-        -------
             the attachment name, or ``None``
             if this message does not have an attached file
         """
@@ -345,11 +333,9 @@ class MessageSerializer(ModelSerializer):
         """Return additional metadata (only for system messages).
 
         Args:
-        ----
             message: the instance being serialised
 
         Returns:
-        -------
             the additional metadata of the system message, or ``None``
             if this is not a system message
         """
@@ -359,6 +345,14 @@ class MessageSerializer(ModelSerializer):
 
     @overrides
     def create(self, validated_data: dict[str, Any]) -> Model:
+        """Create an instance based on validated data.
+
+        Args:
+            validated_data: the validated instance fields
+
+        Returns:
+            the created instance
+        """
         message_type = validated_data.get("type", None)
         if message_type == Message.MessageType.SYSTEM:
             raise ValidationError({"type": ["You cannot create system messages."]})
@@ -465,16 +459,13 @@ class MessageSerializer(ModelSerializer):
         """Create a message and save it to the database.
 
         Args:
-        ----
             message_data: message parameters and data
 
         Raises:
-        ------
             ValidationError: if validation fails
 
         Returns:
-        -------
-            the new instance of :cls:`Message` if it was saved successfully,
+            the new instance of `Message` if it was saved successfully,
             or ``None`` if it was not saved because it is duplicate (same
             ``local_id`` and sender as an existing message).
         """

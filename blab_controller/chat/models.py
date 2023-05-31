@@ -369,8 +369,7 @@ class Message(models.Model):
     def sent_by_human(self) -> bool:
         """Check if this message was sent by a person.
 
-        Returns
-        -------
+        Returns:
             `True` if and only if the message was sent by a human user
         """
         return (

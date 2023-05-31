@@ -1,0 +1,6 @@
+.toctree-checkbox~ul {
+  display: block!important;
+}
+.toctree-checkbox~label {
+  display: none!important;
+}
